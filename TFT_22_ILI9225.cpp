@@ -2,16 +2,10 @@
 
 //#define DEBUG
 #ifdef DEBUG
-    #define DB_PRINT( ... ) { char dbgbuf[60]; std::cout << dbgbuf << std::endl;}
+    #define DB_PRINT( ... ) {char dbgbuf[60]; std::cout << dbgbuf << std::endl;}
 #else
     #define DB_PRINT( ... );
 #endif
-
-#include <limits.h>
-
-// Many (but maybe not all) non-AVR board installs define macros
-// for compatibility with existing PROGMEM-reading AVR code.
-// Do our own checks and defines here for good measure...
 
 #ifndef pgm_read_byte
     #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
@@ -22,9 +16,6 @@
 #ifndef pgm_read_dword
     #define pgm_read_dword(addr) (*(const unsigned long *)(addr))
 #endif
-
-// Pointers are a peculiar case...typically 16-bit on AVR boards,
-// 32 bits elsewhere.  Try to accommodate both...
 
 #if !defined(__INT_MAX__) || (__INT_MAX__ > 0xFFFF)
     #define pgm_read_pointer(addr) ((void *)pgm_read_dword(addr))
@@ -39,29 +30,31 @@
 #define SPI_CS_LOW()    digitalWrite(_cs, LOW)
 
 // Hardware SPI Macros
-#define SPI_OBJECT  SPI
-#define HSPI_SET_CLOCK() SPI_OBJECT.setClock(SPI_DEFAULT_FREQ);
+#define HSPI_SET_CLOCK()            bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_16)   
+#define HSPI_BEGIN_TRANSACTION()    bcm2835_spi_begin()
+#define HSPI_END_TRANSACTION()      {bcm2835_spi_end(); bcm2835_close();}
+#define SPI_DEFAULT_FREQ            32000000
+#define HSPI_WRITE(b)           bcm2835_spi_transfer(b)
+#define HSPI_WRITE16(s)         bcm2835_spi_write(s)
+#define HSPI_WRITE_PIXELS(c,l)  for (uint32_t i=0; i<(l); i+=2) {HSPI_WRITE(((uint8_t*)(c))[i+1]); HSPI_WRITE(((uint8_t*)(c))[i]);}
 
-#define HSPI_BEGIN_TRANSACTION() SPI_OBJECT.beginTransaction(SPISettings(SPI_DEFAULT_FREQ, MSBFIRST, SPI_MODE0))
-#define HSPI_END_TRANSACTION()   SPI_OBJECT.endTransaction()
+#define SPI_BEGIN() {if (bcm2835_init() == -1) {DB_PRINT ("Function bcm2835_init is error\n");} \
+    bcm2835_spi_begin(); \
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST); \
+    //bcm2835_spi_set_speed_hz(SPI_DEFAULT_FREQ); \
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_16); \
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0); \
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0); \
+    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0,LOW);}
 
-#define SPI_DEFAULT_FREQ    32000000
-#define SPI_CHANNEL_RPI    0
-#define HSPI_WRITE(b)            wiringPiSPIDataRW(SPI_CHANNEL_RPI, &b, 1);
-#define HSPI_WRITE16(s)          HSPI_WRITE((s) >> 8); HSPI_WRITE(s)
-#define HSPI_WRITE32(l)          HSPI_WRITE((l) >> 24); HSPI_WRITE((l) >> 16); HSPI_WRITE((l) >> 8); HSPI_WRITE(l)
-#define HSPI_WRITE_PIXELS(c,l)   for(uint32_t i=0; i<(l); i+=2) { HSPI_WRITE(((uint8_t*)(c))[i+1]); HSPI_WRITE(((uint8_t*)(c))[i]); }
-
-#define SPI_BEGIN()             if(_clk < 0){wiringPiSPISetup(SPI_CHANNEL_RPI,SPI_DEFAULT_FREQ);}
-#define SPI_BEGIN_TRANSACTION() if(_clk < 0){HSPI_BEGIN_TRANSACTION();}
-#define SPI_END_TRANSACTION()   if(_clk < 0){HSPI_END_TRANSACTION();}
+#define SPI_BEGIN_TRANSACTION() {HSPI_BEGIN_TRANSACTION();}
+#define SPI_END_TRANSACTION()   {HSPI_END_TRANSACTION();}
 
 // Constructor when using hardware SPI.
 TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs, int8_t led) {
     _rst  = rst;
     _rs   = rs;
     _cs   = cs;
-    _sdi  = _clk = -1;
     _led  = led;
     _brightness = 255; // Set to maximum brightness
     writeFunctionLevel = 0;
@@ -74,14 +67,13 @@ TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs, int8_t led, uin
     _rst  = rst;
     _rs   = rs;
     _cs   = cs;
-    _sdi  = _clk = -1;
     _led  = led;
     _brightness = brightness;
     writeFunctionLevel = 0;
     gfxFont = NULL;
 }
 
-void TFT_22_ILI9225::begin() {
+void TFT_22_ILI9225::begin (void) {
     // Set up reset pin
     if (_rst > 0) {
         pinMode(_rst, OUTPUT);
@@ -187,24 +179,17 @@ void TFT_22_ILI9225::begin() {
     setOrientation(0);
 
     // Initialize variables
-    setBackgroundColor( COLOR_BLACK );
+    setBackgroundColor(COLOR_BLACK);
 
     clear();
 }
 
 void TFT_22_ILI9225::_spiWrite(uint8_t b) {
-    if (_clk < 0) {
-        HSPI_WRITE(b);
-        return;
-    }
+    HSPI_WRITE(b);
 }
 
 void TFT_22_ILI9225::_spiWrite16(uint16_t s) {
-    // Attempt to use HSPI_WRITE16 if available
-    if (_clk < 0) {
-        HSPI_WRITE16(s);
-        return;
-    }
+    HSPI_WRITE16(s);
 }
 
 void TFT_22_ILI9225::_spiWriteCommand(uint8_t c) {
@@ -214,10 +199,10 @@ void TFT_22_ILI9225::_spiWriteCommand(uint8_t c) {
     SPI_CS_HIGH();
 }
 
-void TFT_22_ILI9225::_spiWriteData(uint8_t c) {
+void TFT_22_ILI9225::_spiWriteData(uint8_t d) {
     SPI_DC_HIGH();
     SPI_CS_LOW();
-    _spiWrite(c);
+    _spiWrite(d);
     SPI_CS_HIGH();
 }
 
@@ -315,7 +300,7 @@ void TFT_22_ILI9225::clear() {
     delay(10);
 }
 
-void TFT_22_ILI9225::invert(boolean flag) {
+void TFT_22_ILI9225::invert(bool flag) {
     startWrite();
     _writeCommand16(flag ? ILI9225C_INVON : ILI9225C_INVOFF);
     //_writeCommand(0x00, flag ? ILI9225C_INVON : ILI9225C_INVOFF);
@@ -323,7 +308,7 @@ void TFT_22_ILI9225::invert(boolean flag) {
 }
 
 
-void TFT_22_ILI9225::setBacklight(boolean flag) {
+void TFT_22_ILI9225::setBacklight(bool flag) {
     blState = flag;
 }
 
@@ -334,7 +319,7 @@ void TFT_22_ILI9225::setBacklightBrightness(uint8_t brightness) {
 }
 
 
-void TFT_22_ILI9225::setDisplay(boolean flag) {
+void TFT_22_ILI9225::setDisplay(bool flag) {
     if (flag) {
         startWrite();
         _writeRegister(0x00ff, 0x0000);
@@ -573,14 +558,12 @@ void TFT_22_ILI9225::_swap(uint16_t &a, uint16_t &b) {
 void TFT_22_ILI9225::_writeCommand16(uint16_t command) {
     SPI_DC_LOW();
     SPI_CS_LOW();
-    if ( _clk < 0 ) {
 #ifdef HSPI_WRITE16
-        HSPI_WRITE16(command);
+    HSPI_WRITE16(command);
 #else
-        HSPI_WRITE(command >> 8);
-        HSPI_WRITE(0x00ff & command);
+    HSPI_WRITE(command >> 8);
+    HSPI_WRITE(0x00ff & command);
 #endif
-    }
     SPI_CS_HIGH();
 }
 
@@ -588,19 +571,16 @@ void TFT_22_ILI9225::_writeCommand16(uint16_t command) {
 void TFT_22_ILI9225::_writeData16(uint16_t data) {
     SPI_DC_HIGH();
     SPI_CS_LOW();
-    if (_clk < 0) {
 #ifdef HSPI_WRITE16
-        HSPI_WRITE16(data);
+    HSPI_WRITE16(data);
 #else 
-        HSPI_WRITE(data >> 8);
-        HSPI_WRITE(0x00ff & data);
+    HSPI_WRITE(data >> 8);
+    HSPI_WRITE(0x00ff & data);
 #endif
-    }
     SPI_CS_HIGH();
 }
 
 
-/*
 void TFT_22_ILI9225::_writeData(uint8_t HI, uint8_t LO) {
     _spiWriteData(HI);
     _spiWriteData(LO);
@@ -610,7 +590,6 @@ void TFT_22_ILI9225::_writeCommand(uint8_t HI, uint8_t LO) {
     _spiWriteCommand(HI);
     _spiWriteCommand(LO);
 }
-*/
 
 
 void TFT_22_ILI9225::_writeRegister(uint16_t reg, uint16_t data) {
@@ -934,10 +913,8 @@ void TFT_22_ILI9225::drawBitmap(uint16_t x1, uint16_t y1, const uint16_t** bitma
     SPI_CS_LOW();
     for (uint16_t y = 0; y < h; y++) {
 #ifdef HSPI_WRITE_PIXELS
-        if (_clk < 0) {
-            HSPI_WRITE_PIXELS(bitmap[y], w * sizeof(uint16_t));
-            continue;
-        }
+        HSPI_WRITE_PIXELS(bitmap[y], w * sizeof(uint16_t));
+        continue;
 #endif
         for (uint16_t x = 0; x < w; x++) {
             _spiWrite16(bitmap[y][x]);
@@ -956,10 +933,8 @@ void TFT_22_ILI9225::drawBitmap(uint16_t x1, uint16_t y1, uint16_t** bitmap, int
     SPI_CS_LOW();
     for (uint16_t y = 0; y < h; y++) {
 #ifdef HSPI_WRITE_PIXELS
-        if (_clk < 0) {
-            HSPI_WRITE_PIXELS(bitmap[y], w * sizeof(uint16_t));
-            continue;
-        }
+        HSPI_WRITE_PIXELS(bitmap[y], w * sizeof(uint16_t));
+        continue;
 #endif
         for (uint16_t x = 0; x < w; x++) {
             _spiWrite16(bitmap[y][x]);
@@ -977,13 +952,12 @@ void TFT_22_ILI9225::drawBitmap(uint16_t x1, uint16_t y1, const uint16_t* bitmap
     SPI_DC_HIGH();
     SPI_CS_LOW();
 #ifdef HSPI_WRITE_PIXELS
-    if (_clk < 0) {
-        HSPI_WRITE_PIXELS(bitmap, w * h * sizeof(uint16_t));
-    } else
-#endif
+    HSPI_WRITE_PIXELS(bitmap, w * h * sizeof(uint16_t));
+#else    
     for (uint16_t i = 0; i < h * w; ++i) {
         _spiWrite16(bitmap[i]);
     }
+#endif    
     SPI_CS_HIGH();
     endWrite();
 }
@@ -996,13 +970,12 @@ void TFT_22_ILI9225::drawBitmap(uint16_t x1, uint16_t y1, uint16_t* bitmap, int1
     SPI_DC_HIGH();
     SPI_CS_LOW();
 #ifdef HSPI_WRITE_PIXELS
-    if (_clk < 0) {
-        HSPI_WRITE_PIXELS(bitmap, w * h * sizeof(uint16_t));
-    } else
-#endif
+    HSPI_WRITE_PIXELS(bitmap, w * h * sizeof(uint16_t));
+#else    
     for (uint16_t i = 0; i < h * w; ++i) {
         _spiWrite16(bitmap[i]);
     }
+#endif    
     SPI_CS_HIGH();
     endWrite();
 }

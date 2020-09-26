@@ -4,14 +4,18 @@
 #include <string>
 #include <cstdint>
 #include <iostream>
+#include <stdlib.h>
+#include <limits.h>
 #include "gfxfont.h"
+#include <wiringPi.h>
+using namespace std;
 
-#define WiringPi
-#ifdef WiringPi
-    #include <wiringPi.h>
-    #include <wiringPiSPI.h>
-#elif
+#define McCauley
+#ifdef McCauley
     #include <bcm2835.h>
+#else
+    #include <sys/ioctl.h>
+    #include <linux/spi/spidev.h>
 #endif
 
 #define USE_STRING_CLASS
@@ -20,8 +24,6 @@
 #else
     #define STRING const char *
 #endif
-
-typedef volatile uint32_t RwReg;
 
 /* ILI9225 screen size */
 #define ILI9225_LCD_WIDTH  176
@@ -150,11 +152,11 @@ class TFT_22_ILI9225 {
 
         /// Invert screen
         /// @param     flag true to invert, false for normal screen
-        void invert(boolean flag);
+        void invert(bool flag);
 
         /// Switch backlight on or off
         /// @param     flag true=on, false=off
-        void setBacklight(boolean flag); 
+        void setBacklight(bool flag); 
 
         /// Set backlight brightness
         /// @param     brightness sets backlight brightness 0-255
@@ -162,7 +164,7 @@ class TFT_22_ILI9225 {
 
         /// Switch display on or off
         /// @param     flag true=on, false=off
-        void setDisplay(boolean flag);  
+        void setDisplay(bool flag);  
 
         /// Set orientation
         /// @param     orientation orientation, 0=portrait, 1=right rotated landscape, 2=reverse portrait, 3=left rotated landscape
@@ -365,8 +367,8 @@ class TFT_22_ILI9225 {
         uint16_t drawGFXChar(int16_t x, int16_t y, unsigned char c, uint16_t color);
 
     private:
-        void _spiWrite(uint8_t v);
-        void _spiWrite16(uint16_t v);
+        void _spiWrite(uint8_t b);
+        void _spiWrite16(uint16_t s);
         void _spiWriteCommand(uint8_t c);
         void _spiWriteData(uint8_t d);
 
@@ -384,7 +386,7 @@ class TFT_22_ILI9225 {
         void _writeCommand16(uint16_t HILO);
 
         uint16_t _maxX, _maxY, _bgColor;
-        int8_t  _rst, _rs, _cs, _sdi, _clk, _led;
+        int8_t  _rst, _rs, _cs, _led;
         uint8_t  _orientation, _brightness;
         bool  blState;
         _currentFont cfont;

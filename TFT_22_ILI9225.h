@@ -324,7 +324,7 @@ class TFT_22_ILI9225 {
         /// Draw bitmap
         /// @param    x point coordinate, x-axis
         /// @param    y point coordinate, y-axis
-        /// @param    bitmap, 2D 16bit color bitmap 
+        /// @param    bitmap, 2D 16bit color bitmap
         /// @param    w width
         /// @param    h height
         void drawBitmap(uint16_t x, uint16_t y, const uint16_t** bitmap, int16_t w, int16_t h);
@@ -354,7 +354,7 @@ class TFT_22_ILI9225 {
         /// @param    str string to analyze
         /// @param    x point coordinate, x-axis
         /// @param    y point coordinate, y-axis
-        /// @param    w width in pixels of string 
+        /// @param    w width in pixels of string
         /// @param    h height in pixels of string
         void getGFXTextExtent(STRING str, int16_t x, int16_t y, int16_t *w, int16_t *h);
         

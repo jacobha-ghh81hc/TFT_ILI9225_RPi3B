@@ -1,3 +1,4 @@
+// Include application, user and local libraries
 #include "TFT_22_ILI9225.h"
 
 //#define DEBUG
@@ -23,6 +24,12 @@
     #define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
 #endif
 
+// Andruino Macros
+#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
+#define bitSet(value, bit) ((value) |= (1UL << (bit)))
+#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
+#define bitWrite(value, bit, bitvalue) ((bitvalue) ? bitSet(value, bit) : bitClear(value, bit))
+
 // Control pins
 #define SPI_DC_HIGH()   digitalWrite(_rs, HIGH)
 #define SPI_DC_LOW()    digitalWrite(_rs, LOW)
@@ -34,9 +41,9 @@
 #define HSPI_BEGIN_TRANSACTION()    bcm2835_spi_begin()
 #define HSPI_END_TRANSACTION()      {bcm2835_spi_end(); bcm2835_close();}
 #define SPI_DEFAULT_FREQ            32000000
-#define HSPI_WRITE(b)           bcm2835_spi_transfer(b)
-#define HSPI_WRITE16(s)         bcm2835_spi_write(s)
-#define HSPI_WRITE_PIXELS(c,l)  for (uint32_t i=0; i<(l); i+=2) {HSPI_WRITE(((uint8_t*)(c))[i+1]); HSPI_WRITE(((uint8_t*)(c))[i]);}
+#define HSPI_WRITE(b)               bcm2835_spi_transfer(b)
+#define HSPI_WRITE16(s)             bcm2835_spi_write(s)
+#define HSPI_WRITE_PIXELS(c,l)      for (uint32_t i=0; i<(l); i+=2) {HSPI_WRITE(((uint8_t*)(c))[i+1]); HSPI_WRITE(((uint8_t*)(c))[i]);}
 
 #define SPI_BEGIN() {if (bcm2835_init() == -1) {DB_PRINT ("Function bcm2835_init is error\n");} \
     bcm2835_spi_begin(); \
@@ -73,14 +80,17 @@ TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs, int8_t led, uin
     gfxFont = NULL;
 }
 
-void TFT_22_ILI9225::begin (void) {
+void TFT_22_ILI9225::begin (void)
+{
     // Set up reset pin
-    if (_rst > 0) {
+    if (_rst > 0)
+    {
         pinMode(_rst, OUTPUT);
         digitalWrite(_rst, LOW);
     }
     // Set up backlight pin, turn off initially
-    if (_led > 0) {
+    if (_led > 0)
+    {
         pinMode(_led, OUTPUT);
         setBacklight(false);
     }
@@ -95,7 +105,8 @@ void TFT_22_ILI9225::begin (void) {
     SPI_BEGIN();
 
     // Initialization Code
-    if (_rst > 0) {
+    if (_rst > 0)
+    {
         digitalWrite(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
         delay(1); 
         digitalWrite(_rst, LOW); // Pull the reset pin low to reset ILI9225
@@ -104,9 +115,9 @@ void TFT_22_ILI9225::begin (void) {
         delay(50);
     }
 
-    /* Start Initial Sequence */
+    // Start Initial Sequence
 
-    /* Set SS bit and direction output from S528 to S1 */
+    // Set SS bit and direction output from S528 to S1
     startWrite();
     _writeRegister(ILI9225_POWER_CTRL1, 0x0000); // Set SAP,DSTB,STB
     _writeRegister(ILI9225_POWER_CTRL2, 0x0000); // Set APON,PON,AON,VCI1EN,VC
@@ -120,7 +131,7 @@ void TFT_22_ILI9225::begin (void) {
     startWrite();
     _writeRegister(ILI9225_POWER_CTRL2, 0x0018); // Set APON,PON,AON,VCI1EN,VC
     _writeRegister(ILI9225_POWER_CTRL3, 0x6121); // Set BT,DC1,DC2,DC3
-    _writeRegister(ILI9225_POWER_CTRL4, 0x006F); // Set GVDD   /*007F 0088 */
+    _writeRegister(ILI9225_POWER_CTRL4, 0x006F); // Set GVDD 007F 0088
     _writeRegister(ILI9225_POWER_CTRL5, 0x495F); // Set VCOMH/VCOML voltage
     _writeRegister(ILI9225_POWER_CTRL1, 0x0800); // Set SAP,DSTB,STB
     endWrite();
@@ -138,12 +149,12 @@ void TFT_22_ILI9225::begin (void) {
     _writeRegister(ILI9225_BLANK_PERIOD_CTRL1, 0x0808); // set the back porch and front porch
     _writeRegister(ILI9225_FRAME_CYCLE_CTRL, 0x1100); // set the clocks number per line
     _writeRegister(ILI9225_INTERFACE_CTRL, 0x0000); // CPU interface
-    _writeRegister(ILI9225_OSC_CTRL, 0x0D01); // Set Osc  /*0e01*/
+    _writeRegister(ILI9225_OSC_CTRL, 0x0D01); // Set Osc 0e01
     _writeRegister(ILI9225_VCI_RECYCLING, 0x0020); // Set VCI recycling
     _writeRegister(ILI9225_RAM_ADDR_SET1, 0x0000); // RAM Address
     _writeRegister(ILI9225_RAM_ADDR_SET2, 0x0000); // RAM Address
 
-    /* Set GRAM area */
+    // Set GRAM area
     _writeRegister(ILI9225_GATE_SCAN_CTRL, 0x0000); 
     _writeRegister(ILI9225_VERTICAL_SCROLL_CTRL1, 0x00DB); 
     _writeRegister(ILI9225_VERTICAL_SCROLL_CTRL2, 0x0000); 
@@ -155,7 +166,7 @@ void TFT_22_ILI9225::begin (void) {
     _writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1, 0x00DB); 
     _writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2, 0x0000); 
 
-    /* Set GAMMA curve */
+    // Set GAMMA curve
     _writeRegister(ILI9225_GAMMA_CTRL1, 0x0000); 
     _writeRegister(ILI9225_GAMMA_CTRL2, 0x0808); 
     _writeRegister(ILI9225_GAMMA_CTRL3, 0x080A); 
@@ -180,7 +191,6 @@ void TFT_22_ILI9225::begin (void) {
 
     // Initialize variables
     setBackgroundColor(COLOR_BLACK);
-
     clear();
 }
 
@@ -207,7 +217,6 @@ void TFT_22_ILI9225::_spiWriteData(uint8_t d) {
 }
 
 void TFT_22_ILI9225::_orientCoordinates(uint16_t &x1, uint16_t &y1) {
-
     switch (_orientation) {
         case 0:  // ok
             break;
@@ -713,7 +722,7 @@ uint16_t TFT_22_ILI9225::drawText(uint16_t x, uint16_t y, STRING s, uint16_t col
     // Print every character in string
 #ifdef USE_STRING_CLASS
     for (uint8_t k = 0; k < s.length(); k++) {
-        currx += drawChar(currx, y, s.charAt(k), color) + 1;
+        currx += drawChar(currx, y, s.at(k), color) + 1;
     }
 #else
     for (uint8_t k = 0; k < strlen(s); k++) {
@@ -730,7 +739,7 @@ uint16_t TFT_22_ILI9225::getTextWidth( STRING s ) {
     // Count every character in string ( +1 for spacing )
 #ifdef USE_STRING_CLASS
     for (uint8_t k = 0; k < s.length(); k++) {
-        width += getCharWidth(s.charAt(k) ) + 1;
+        width += getCharWidth(s.at(k) ) + 1;
     }
 #else
     for (uint8_t k = 0; k < strlen(s); k++) {
@@ -1013,7 +1022,7 @@ void TFT_22_ILI9225::drawGFXText(int16_t x, int16_t y, STRING s, uint16_t color)
         // Print every character in string
 #ifdef USE_STRING_CLASS
         for (uint8_t k = 0; k < s.length(); k++) {
-            currx += drawGFXChar(currx, y, s.charAt(k), color) + 1;
+            currx += drawGFXChar(currx, y, s.at(k), color) + 1;
         }
 #else
         for (uint8_t k = 0; k < strlen(s); k++) {
@@ -1077,7 +1086,7 @@ void TFT_22_ILI9225::getGFXTextExtent(STRING str, int16_t x, int16_t y, int16_t 
     *w  = *h = 0;
 #ifdef USE_STRING_CLASS
     for (uint8_t k = 0; k < str.length(); k++) {
-        uint8_t c = str.charAt(k);
+        uint8_t c = str.at(k);
 #else
     for (uint8_t k = 0; k < strlen(str); k++) {
         uint8_t c = str[k];

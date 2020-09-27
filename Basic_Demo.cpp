@@ -302,12 +302,6 @@ int main (void)
 	tft.drawLine(0, 0, tft.maxX() - 1, tft.maxY() - 1, COLOR_CYAN);
 	tft.drawText(10, 100, "line");
 	delay(1000);
-
-	for (uint8_t i = 0; i < 127; i++) {
-		tft.drawPixel(srand(tft.maxX()), srand(tft.maxY()), COLOR_GREEN);
-		tft.drawText(10, 110, "point", COLOR_AZUR);
-		delay(1000);
-	}
 	
 	for (uint8_t i = 0; i < 4; i++) {
 		tft.clear();

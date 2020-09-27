@@ -6,6 +6,8 @@
 #ifndef _GFFFONT_H_
 #define _GFFFONT_H_
 
+#include <cstdint>
+
 typedef struct { // Data stored PER GLYPH
 	uint16_t bitmapOffset;     // Pointer into GFXfont->bitmap
 	uint8_t  width, height;    // Bitmap dimensions in pixels

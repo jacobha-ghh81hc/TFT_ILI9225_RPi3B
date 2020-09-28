@@ -1,11 +1,11 @@
 // Include application, user and local libraries
 #include "TFT_22_ILI9225.h"
 
-//#define DEBUG
+#define DEBUG
 #ifdef DEBUG
-    #define DB_PRINT( ... ) {char dbgbuf[60]; std::cout << dbgbuf << std::endl;}
+    #define DB_PRINT( ... ) { char dbgbuf[60]; sprintf( dbgbuf,   __VA_ARGS__ ); }
 #else
-    #define DB_PRINT( ... );
+    #define DB_PRINT(  ... ) ;
 #endif
 
 #ifndef pgm_read_byte
@@ -24,11 +24,8 @@
     #define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
 #endif
 
-// Andruino Macros
+// Arduino Macros
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
-#define bitSet(value, bit) ((value) |= (1UL << (bit)))
-#define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
-#define bitWrite(value, bit, bitvalue) ((bitvalue) ? bitSet(value, bit) : bitClear(value, bit))
 
 // Control pins
 #define SPI_DC_HIGH()   digitalWrite(_rs, HIGH)
@@ -37,25 +34,26 @@
 #define SPI_CS_LOW()    digitalWrite(_cs, LOW)
 
 // Hardware SPI Macros
-#define HSPI_SET_CLOCK()            bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_16)   
+#define HSPI_SET_CLOCK()            bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8)   
 #define HSPI_BEGIN_TRANSACTION()    bcm2835_spi_begin()
-#define HSPI_END_TRANSACTION()      {bcm2835_spi_end(); bcm2835_close();}
+#define HSPI_END_TRANSACTION()      { bcm2835_spi_end(); bcm2835_close(); }
 #define SPI_DEFAULT_FREQ            32000000
+//bcm2835_spi_set_speed_hz(SPI_DEFAULT_FREQ);
+
 #define HSPI_WRITE(b)               bcm2835_spi_transfer(b)
 #define HSPI_WRITE16(s)             bcm2835_spi_write(s)
-#define HSPI_WRITE_PIXELS(c,l)      for (uint32_t i=0; i<(l); i+=2) {HSPI_WRITE(((uint8_t*)(c))[i+1]); HSPI_WRITE(((uint8_t*)(c))[i]);}
+#define HSPI_WRITE_PIXELS(c,l)      for (uint32_t i=0; i<(l); i+=2) { HSPI_WRITE(((uint8_t*)(c))[i+1]); HSPI_WRITE(((uint8_t*)(c))[i]); }
 
-#define SPI_BEGIN() {if (bcm2835_init() == -1) {DB_PRINT ("Function bcm2835_init is error\n");} \
+#define SPI_BEGIN() { if (bcm2835_init() != 0) { DB_PRINT("Function bcm2835_init is error\n"); return; } \
     bcm2835_spi_begin(); \
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST); \
-    //bcm2835_spi_set_speed_hz(SPI_DEFAULT_FREQ); \
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_16); \
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8); \
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE0); \
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0); \
-    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0,LOW);}
+    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0,LOW); }
 
-#define SPI_BEGIN_TRANSACTION() {HSPI_BEGIN_TRANSACTION();}
-#define SPI_END_TRANSACTION()   {HSPI_END_TRANSACTION();}
+#define SPI_BEGIN_TRANSACTION() { HSPI_BEGIN_TRANSACTION(); }
+#define SPI_END_TRANSACTION()   { HSPI_END_TRANSACTION(); }
 
 // Constructor when using hardware SPI.
 TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs, int8_t led) {
@@ -82,15 +80,15 @@ TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs, int8_t led, uin
 
 void TFT_22_ILI9225::begin (void)
 {
+
+    if (wiringPiSetupGpio() != 0) { DB_PRINT("Function wiringPiSetupGpio is error\n"); return; }
     // Set up reset pin
-    if (_rst > 0)
-    {
+    if (_rst > 0) {
         pinMode(_rst, OUTPUT);
         digitalWrite(_rst, LOW);
     }
     // Set up backlight pin, turn off initially
-    if (_led > 0)
-    {
+    if (_led > 0) {
         pinMode(_led, OUTPUT);
         setBacklight(false);
     }
@@ -105,8 +103,7 @@ void TFT_22_ILI9225::begin (void)
     SPI_BEGIN();
 
     // Initialization Code
-    if (_rst > 0)
-    {
+    if (_rst > 0) {
         digitalWrite(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
         delay(1); 
         digitalWrite(_rst, LOW); // Pull the reset pin low to reset ILI9225

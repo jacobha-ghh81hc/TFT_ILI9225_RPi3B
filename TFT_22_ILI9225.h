@@ -4,7 +4,6 @@
 #include <string>
 #include <cstdint>
 #include <iostream>
-#include <stdlib.h>
 #include <limits.h>
 #include "gfxfont.h"
 #include <wiringPi.h>

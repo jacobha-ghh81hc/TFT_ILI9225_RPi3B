@@ -3,19 +3,19 @@
 
 // [Pin connection]
 // ILI9225-SPI     RPi(Pin#)
-// CS---------TFT_CS------GPIO8 Chip select 		Pin#24
-// RST--------TFT_RST-----GPIO3 Reset 				Pin#5
-// RS(DC)-----TFT_RS------GPIO2 0=COMMAND/1=DATA 	Pin#3
-// SDA--------TFT_SDI-----GPIO10 SPI0_MOSI			Pin#19
-// CLK--------TFT_CLK-----GPIO11 SPI0_CLK			Pin#23
-// GND--------0V----------Pin#6
-// VCC--------3.3V--------Pin#1
+// CS---------TFT_CS------GPIO8 Chip select----------Pin#24
+// RST--------TFT_RST-----GPIO3 Reset----------------Pin#5
+// RS(DC)-----TFT_RS------GPIO2 0=COMMAND/1=DATA-----Pin#3
+// SDA--------TFT_SDI-----GPIO10 SPI0_MOSI-----------Pin#19
+// CLK--------TFT_CLK-----GPIO11 SPI0_CLK------------Pin#23
+// GND--------0V----------GND------------------------Pin#6
+// VCC--------3.3V--------VCC------------------------Pin#1
 
 #define TFT_RST 3
 #define TFT_RS 2
 #define TFT_CS 8
 #define TFT_LED 0
-#define TFT_BRIGHTNESS 200 // Initial brightness of TFT backlight (optional)
+#define TFT_BRIGHTNESS 100 // Initial brightness of TFT backlight (optional)
 
 // Use hardware SPI
 TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS, TFT_LED, TFT_BRIGHTNESS);
@@ -257,7 +257,6 @@ int main (void)
 {
 	tft.begin();
 
-	RUNNING:
 	tft.drawRectangle(0, 0, tft.maxX() - 1, tft.maxY() - 1, COLOR_WHITE);
 	tft.setFont(Terminal6x8);
 	tft.drawText(10, 10, "hello!");
@@ -338,6 +337,5 @@ int main (void)
 	tft.setBacklight(false);
 	tft.setDisplay(false);
 
-	goto RUNNING;
 	return 0;
 }

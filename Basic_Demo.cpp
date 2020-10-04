@@ -257,6 +257,7 @@ int main (void)
 {
 	tft.begin();
 
+	RUNNING:
 	tft.drawRectangle(0, 0, tft.maxX() - 1, tft.maxY() - 1, COLOR_WHITE);
 	tft.setFont(Terminal6x8);
 	tft.drawText(10, 10, "hello!");
@@ -322,6 +323,12 @@ int main (void)
 	tft.drawBitmap(0, 0, tux, 180, 220, COLOR_WHITE);
 	delay(5000);
 
+	tft.clear();
+	tft.drawPixel(10, 20, COLOR_VIOLET);
+	delay(3000);
+    tft.drawText(10, 110, "point");
+    delay(1000);
+
 	tft.setOrientation(0);
 	tft.clear();
 	tft.setFont(Terminal12x16);
@@ -333,6 +340,7 @@ int main (void)
   
 	tft.drawText(10, 60, "off");
 	delay(1000);
+	goto RUNNING;
 
 	tft.setBacklight(false);
 	tft.setDisplay(false);

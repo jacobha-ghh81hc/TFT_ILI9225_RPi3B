@@ -3,9 +3,9 @@
 
 #define DEBUG
 #ifdef DEBUG
-    #define DB_PRINT( ... ) { char dbgbuf[60]; sprintf( dbgbuf,   __VA_ARGS__ ); }
+    #define DB_PRINT( ... ) { char dbgbuf[60]; sprintf( dbgbuf, __VA_ARGS__ ); std::cout << "[" << __FILE__ << "][" << __FUNCTION__ << "][Line " << __LINE__ << "] " << dbgbuf << std::endl; }
 #else
-    #define DB_PRINT(  ... ) ;
+    #define DB_PRINT( ... )
 #endif
 
 #ifndef pgm_read_byte
@@ -36,21 +36,13 @@
 // Hardware SPI Macros
 #define HSPI_SET_CLOCK()            bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8)   
 #define HSPI_BEGIN_TRANSACTION()    bcm2835_spi_begin()
-#define HSPI_END_TRANSACTION()      { bcm2835_spi_end(); bcm2835_close(); }
+#define HSPI_END_TRANSACTION()      bcm2835_spi_end()
 #define SPI_DEFAULT_FREQ            32000000
 //bcm2835_spi_set_speed_hz(SPI_DEFAULT_FREQ);
 
 #define HSPI_WRITE(b)               bcm2835_spi_transfer(b)
 #define HSPI_WRITE16(s)             bcm2835_spi_write(s)
 #define HSPI_WRITE_PIXELS(c,l)      for (uint32_t i=0; i<(l); i+=2) { HSPI_WRITE(((uint8_t*)(c))[i+1]); HSPI_WRITE(((uint8_t*)(c))[i]); }
-
-#define SPI_BEGIN() { if (bcm2835_init() != 0) { DB_PRINT("Function bcm2835_init is error\n"); return; } \
-    bcm2835_spi_begin(); \
-    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST); \
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8); \
-    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0); \
-    bcm2835_spi_chipSelect(BCM2835_SPI_CS0); \
-    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0,LOW); }
 
 #define SPI_BEGIN_TRANSACTION() { HSPI_BEGIN_TRANSACTION(); }
 #define SPI_END_TRANSACTION()   { HSPI_END_TRANSACTION(); }
@@ -78,6 +70,17 @@ TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs, int8_t led, uin
     gfxFont = NULL;
 }
 
+void TFT_22_ILI9225::SPI_begin (void)
+{
+    if (!bcm2835_init()) { DB_PRINT("Function bcm2835_init is error\n"); return; }
+    if (!bcm2835_spi_begin()) { DB_PRINT("Function bcm2835_spi_begin is error\n"); return; }
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8);
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
+    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0,LOW);
+}
+
 void TFT_22_ILI9225::begin (void)
 {
 
@@ -100,7 +103,7 @@ void TFT_22_ILI9225::begin (void)
     digitalWrite(_cs, HIGH);
 
     // Hardware SPI
-    SPI_BEGIN();
+    SPI_begin();
 
     // Initialization Code
     if (_rst > 0) {

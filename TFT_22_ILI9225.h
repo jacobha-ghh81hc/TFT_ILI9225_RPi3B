@@ -146,6 +146,9 @@ class TFT_22_ILI9225 {
         /// Initialization
         void begin(void);
 
+        /// SPI Initialization
+        void SPI_begin (void);
+
         /// Clear the screen
         void clear(void);
 

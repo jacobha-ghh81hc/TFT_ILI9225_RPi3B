@@ -3,8 +3,8 @@
 // To use a font in your Arduino sketch, #include the corresponding .h
 // file and pass address of GFXfont struct to setFont().
 
-#ifndef _GFFFONT_H_
-#define _GFFFONT_H_
+#ifndef _GFXFONT_H_
+#define _GFXFONT_H_
 
 #include <cstdint>
 
@@ -22,4 +22,4 @@ typedef struct { // Data stored for FONT AS A WHOLE:
 	uint8_t   yAdvance;    // Newline distance (y axis)
 } GFXfont;
 
-#endif // _GFFFONT_H_
+#endif // _GFXFONT_H_

@@ -2,27 +2,21 @@
 #include "TFT_22_ILI9225.h"
 
 // [Pin connection]
-// ILI9225-SPI     RPi(Pin#)
-// CS---------TFT_CS------GPIO8 Chip select----------Pin#24
-// RST--------TFT_RST-----GPIO3 Reset----------------Pin#5
-// RS(DC)-----TFT_RS------GPIO2 0=COMMAND/1=DATA-----Pin#3
-// SDA--------TFT_SDI-----GPIO10 SPI0_MOSI-----------Pin#19
-// CLK--------TFT_CLK-----GPIO11 SPI0_CLK------------Pin#23
-// GND--------0V----------GND------------------------Pin#6
-// VCC--------3.3V--------VCC------------------------Pin#1
+// ILI9225-SPI-------------------------------------RPi(Pin#)
+// CS---------TFT_CS------GPIO8 Chip select--------RPI_V2_GPIO_P1_24--Pin#24
+// RST--------TFT_RST-----GPIO3 Reset--------------RPI_V2_GPIO_P1_05--Pin#5
+// RS(DC)-----TFT_RS------GPIO2 0=COMMAND/1=DATA---RPI_V2_GPIO_P1_03--Pin#3
+// SDA--------TFT_SDI-----GPIO10 SPI0_MOSI---------Pin#19
+// CLK--------TFT_CLK-----GPIO11 SPI0_CLK----------Pin#23
+// GND--------0V----------GND----------------------Pin#6
+// VCC--------3.3V--------VCC----------------------Pin#1
 
-#define TFT_RST 3
-#define TFT_RS 2
-#define TFT_CS 8
-#define TFT_LED 0
-#define TFT_BRIGHTNESS 100 // Initial brightness of TFT backlight (optional)
+#define TFT_RST RPI_BPLUS_GPIO_J8_05
+#define TFT_RS RPI_BPLUS_GPIO_J8_03
+#define TFT_CS RPI_BPLUS_GPIO_J8_24
 
 // Use hardware SPI
-TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS, TFT_LED, TFT_BRIGHTNESS);
-
-// Variables and constants
-uint16_t x, y;
-bool flag = false;
+TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS);
 
 /*
  * Tux black/white image in 180x220 converted using Ardafruit bitmap converter
@@ -259,7 +253,7 @@ int main (void)
 
 	RUNNING:
 	tft.drawRectangle(0, 0, tft.maxX() - 1, tft.maxY() - 1, COLOR_WHITE);
-	tft.setFont(Terminal6x8);
+	tft.setFont(Terminal12x16);
 	tft.drawText(10, 10, "hello!");
 	delay(1000);
   
@@ -269,18 +263,10 @@ int main (void)
 
 	tft.drawText(10, 30, "text small");
 	tft.setBackgroundColor(COLOR_YELLOW);
-	tft.setFont(Terminal12x16);
-	tft.drawText(90, 30, "BIG", COLOR_RED);
-	tft.setBackgroundColor(COLOR_BLACK);
 	tft.setFont(Terminal6x8);
-	delay(1000);
-
-	tft.drawText(10, 40, "setBacklight off");
-	delay(500);
-	tft.setBacklight(LOW);
-	delay(500);
-	tft.setBacklight(HIGH);
-	tft.drawText(10, 50, "setBacklight on");
+	tft.drawText(90, 30, "BIG", COLOR_RED);
+	tft.setBackgroundColor(COLOR_RED);
+	tft.setFont(Terminal12x16);
 	delay(1000);
 
 	tft.drawRectangle(10, 10, 110, 110, COLOR_BLUE);
@@ -319,22 +305,22 @@ int main (void)
 	tft.drawText(10, 100, "drawing bitmap");
 	delay(1000);
 	tft.clear();
-	tft.setBackgroundColor(COLOR_BLACK);
+	tft.setBackgroundColor(COLOR_RED);
 	tft.drawBitmap(0, 0, tux, 180, 220, COLOR_WHITE);
 	delay(5000);
 
 	tft.clear();
-	tft.drawPixel(10, 20, COLOR_VIOLET);
+	tft.drawPixel(10, 20, COLOR_RED);
 	delay(3000);
-    tft.drawText(10, 110, "point");
-    delay(1000);
+	tft.drawText(10, 110, "point");
+	delay(1000);
 
 	tft.setOrientation(0);
 	tft.clear();
 	tft.setFont(Terminal12x16);
 	tft.setBackgroundColor(COLOR_YELLOW);
 	tft.drawText(10, 40, "bye!", COLOR_RED);
-	tft.setBackgroundColor(COLOR_BLACK);
+	tft.setBackgroundColor(COLOR_GREEN);
 	tft.setFont(Terminal6x8);
 	delay(1000);
   
@@ -342,7 +328,6 @@ int main (void)
 	delay(1000);
 	goto RUNNING;
 
-	tft.setBacklight(false);
 	tft.setDisplay(false);
 
 	return 0;

@@ -8,37 +8,23 @@
     #define DB_PRINT( ... )
 #endif
 
-#ifndef pgm_read_byte
-    #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
-#endif
-#ifndef pgm_read_word
-    #define pgm_read_word(addr) (*(const unsigned short *)(addr))
-#endif
-#ifndef pgm_read_dword
-    #define pgm_read_dword(addr) (*(const unsigned long *)(addr))
-#endif
-
-#if !defined(__INT_MAX__) || (__INT_MAX__ > 0xFFFF)
-    #define pgm_read_pointer(addr) ((void *)pgm_read_dword(addr))
-#else
-    #define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
-#endif
+#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+#define pgm_read_word(addr) (*(const unsigned long *)(addr))
+#define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
 
 // Arduino Macros
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 
 // Control pins
-#define SPI_DC_HIGH()   digitalWrite(_rs, HIGH)
-#define SPI_DC_LOW()    digitalWrite(_rs, LOW)
-#define SPI_CS_HIGH()   digitalWrite(_cs, HIGH)
-#define SPI_CS_LOW()    digitalWrite(_cs, LOW)
+#define SPI_DC_HIGH()   bcm2835_gpio_write(_rs, HIGH)
+#define SPI_DC_LOW()    bcm2835_gpio_write(_rs, LOW)
+#define SPI_CS_HIGH()   bcm2835_gpio_write(_cs, HIGH)
+#define SPI_CS_LOW()    bcm2835_gpio_write(_cs, LOW)
 
 // Hardware SPI Macros
 #define HSPI_SET_CLOCK()            bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8)   
 #define HSPI_BEGIN_TRANSACTION()    bcm2835_spi_begin()
 #define HSPI_END_TRANSACTION()      bcm2835_spi_end()
-#define SPI_DEFAULT_FREQ            32000000
-//bcm2835_spi_set_speed_hz(SPI_DEFAULT_FREQ);
 
 #define HSPI_WRITE(b)               bcm2835_spi_transfer(b)
 #define HSPI_WRITE16(s)             bcm2835_spi_write(s)
@@ -48,31 +34,16 @@
 #define SPI_END_TRANSACTION()   { HSPI_END_TRANSACTION(); }
 
 // Constructor when using hardware SPI.
-TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs, int8_t led) {
+TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs) {
     _rst  = rst;
     _rs   = rs;
     _cs   = cs;
-    _led  = led;
-    _brightness = 255; // Set to maximum brightness
-    writeFunctionLevel = 0;
-    gfxFont = NULL;
-}
-
-// Constructor when using hardware SPI.
-// Adds backlight brightness 0-255
-TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs, int8_t led, uint8_t brightness) {
-    _rst  = rst;
-    _rs   = rs;
-    _cs   = cs;
-    _led  = led;
-    _brightness = brightness;
     writeFunctionLevel = 0;
     gfxFont = NULL;
 }
 
 void TFT_22_ILI9225::SPI_begin (void)
 {
-    if (!bcm2835_init()) { DB_PRINT("Function bcm2835_init is error\n"); return; }
     if (!bcm2835_spi_begin()) { DB_PRINT("Function bcm2835_spi_begin is error\n"); return; }
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
     bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8);
@@ -83,37 +54,28 @@ void TFT_22_ILI9225::SPI_begin (void)
 
 void TFT_22_ILI9225::begin (void)
 {
+    if (!bcm2835_init()) { DB_PRINT("Function bcm2835_init is error\n"); return; }
 
-    if (wiringPiSetupGpio() != 0) { DB_PRINT("Function wiringPiSetupGpio is error\n"); return; }
     // Set up reset pin
-    if (_rst > 0) {
-        pinMode(_rst, OUTPUT);
-        digitalWrite(_rst, LOW);
-    }
-    // Set up backlight pin, turn off initially
-    if (_led > 0) {
-        pinMode(_led, OUTPUT);
-        setBacklight(false);
-    }
+    bcm2835_gpio_fsel(_rst, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_write(_rst, LOW);
 
     // Control pins
-    pinMode(_rs, OUTPUT);
-    digitalWrite(_rs, LOW);
-    pinMode(_cs, OUTPUT);
-    digitalWrite(_cs, HIGH);
+    bcm2835_gpio_fsel(_rs, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_write(_rs, LOW);
+    bcm2835_gpio_fsel(_cs, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_write(_cs, HIGH);
 
     // Hardware SPI
     SPI_begin();
 
     // Initialization Code
-    if (_rst > 0) {
-        digitalWrite(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
-        delay(1); 
-        digitalWrite(_rst, LOW); // Pull the reset pin low to reset ILI9225
-        delay(10);
-        digitalWrite(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
-        delay(50);
-    }
+    bcm2835_gpio_write(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
+    delay(1); 
+    bcm2835_gpio_write(_rst, LOW); // Pull the reset pin low to reset ILI9225
+    delay(10);
+    bcm2835_gpio_write(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
+    delay(50);
 
     // Start Initial Sequence
 
@@ -186,7 +148,6 @@ void TFT_22_ILI9225::begin (void)
     endWrite();
 
     // Turn on backlight
-    setBacklight(true);
     setOrientation(0);
 
     // Initialize variables
@@ -314,17 +275,6 @@ void TFT_22_ILI9225::invert(bool flag) {
     _writeCommand16(flag ? ILI9225C_INVON : ILI9225C_INVOFF);
     //_writeCommand(0x00, flag ? ILI9225C_INVON : ILI9225C_INVOFF);
     endWrite();
-}
-
-
-void TFT_22_ILI9225::setBacklight(bool flag) {
-    blState = flag;
-}
-
-
-void TFT_22_ILI9225::setBacklightBrightness(uint8_t brightness) {
-    _brightness = brightness;
-    setBacklight(blState);
 }
 
 

@@ -1,13 +1,8 @@
 #ifndef TFT_22_ILI9225_h
 #define TFT_22_ILI9225_h
 
-#include <string>
 #include <cstdint>
-#include <iostream>
-#include <limits.h>
 #include "gfxfont.h"
-#include <wiringPi.h>
-using namespace std;
 
 #define McCauley
 #ifdef McCauley
@@ -19,8 +14,13 @@ using namespace std;
 
 #define USE_STRING_CLASS
 #ifdef USE_STRING_CLASS
+    #include <iostream>
+    #include <string>
+    using namespace std;
     #define STRING std::string
 #else
+    #include <stdio.h>
+    #include <string.h>
     #define STRING const char *
 #endif
 
@@ -115,7 +115,6 @@ enum autoIncMode_t { R2L_BottomUp, BottomUp_R2L, L2R_BottomUp, BottomUp_L2R, R2L
 #define COLOR_SNOW           0xFFDF      /* 255, 250, 250 */
 #define COLOR_YELLOW         0xFFE0      /* 255, 255,   0 */
 
-
 /* Font defines */
 #define FONT_HEADER_SIZE 4 // 1: pixel width of 1 font character, 2: pixel height, 
 #define readFontByte(x) pgm_read_byte(&cfont.font[x])  
@@ -135,13 +134,11 @@ struct _currentFont
     uint8_t nbrows;
     bool    monoSp;
 };
-#define MONOSPACE   1
 
 /// Main and core class
 class TFT_22_ILI9225 {
     public:
-        TFT_22_ILI9225(int8_t RST, int8_t RS, int8_t CS, int8_t LED);
-        TFT_22_ILI9225(int8_t RST, int8_t RS, int8_t CS, int8_t LED, uint8_t brightness);
+        TFT_22_ILI9225(int8_t RST, int8_t RS, int8_t CS);
 
         /// Initialization
         void begin(void);
@@ -156,14 +153,6 @@ class TFT_22_ILI9225 {
         /// @param     flag true to invert, false for normal screen
         void invert(bool flag);
 
-        /// Switch backlight on or off
-        /// @param     flag true=on, false=off
-        void setBacklight(bool flag); 
-
-        /// Set backlight brightness
-        /// @param     brightness sets backlight brightness 0-255
-        void setBacklightBrightness(uint8_t brightness); 
-
         /// Switch display on or off
         /// @param     flag true=on, false=off
         void setDisplay(bool flag);  
@@ -175,14 +164,6 @@ class TFT_22_ILI9225 {
         /// Get orientation
         /// @return    orientation orientation, 0=portrait, 1=right rotated landscape, 2=reverse portrait, 3=left rotated landscape
         uint8_t getOrientation(void); 
-
-        /// Font size, x-axis
-        /// @return    horizontal size of current font, in pixels
-        // uint8_t fontX(void);
-
-        /// Font size, y-axis
-        /// @return    vertical size of current font, in pixels
-        // uint8_t fontY(void); 
 
         /// Screen size, x-axis
         /// @return   horizontal size of the screen, in pixels
@@ -388,9 +369,8 @@ class TFT_22_ILI9225 {
         void _writeCommand16(uint16_t HILO);
 
         uint16_t _maxX, _maxY, _bgColor;
-        int8_t  _rst, _rs, _cs, _led;
-        uint8_t  _orientation, _brightness;
-        bool  blState;
+        int8_t  _rst, _rs, _cs;
+        uint8_t  _orientation;
         _currentFont cfont;
         
         // Corresponding modes if orientation changed:

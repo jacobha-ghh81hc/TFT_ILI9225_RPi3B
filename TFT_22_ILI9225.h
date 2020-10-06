@@ -2,15 +2,8 @@
 #define TFT_22_ILI9225_h
 
 #include <cstdint>
+#include "SPI_CONFIG.h"
 #include "gfxfont.h"
-
-#define McCauley
-#ifdef McCauley
-    #include <bcm2835.h>
-#else
-    #include <sys/ioctl.h>
-    #include <linux/spi/spidev.h>
-#endif
 
 #define USE_STRING_CLASS
 #ifdef USE_STRING_CLASS
@@ -136,15 +129,14 @@ struct _currentFont
 };
 
 /// Main and core class
-class TFT_22_ILI9225 {
+class TFT_22_ILI9225 : public SPI_Configuration
+{
     public:
         TFT_22_ILI9225(int8_t RST, int8_t RS, int8_t CS);
+        TFT_22_ILI9225(const SPI_Configuration & spi_cfg);
 
         /// Initialization
         void begin(void);
-
-        /// SPI Initialization
-        void SPI_begin (void);
 
         /// Clear the screen
         void clear(void);
@@ -257,7 +249,7 @@ class TFT_22_ILI9225 {
         /// @param    x3 corner 3 coordinate, x-axis
         /// @param    y3 corner 3 coordinate, y-axis
         /// @param    color 16-bit color
-        void drawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color); 
+        void drawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color);
 
         /// Draw solid triangle, triangle coordinates
         /// @param    x1 corner 1 coordinate, x-axis
@@ -349,27 +341,17 @@ class TFT_22_ILI9225 {
         /// @return   width of character in display pixels
         uint16_t drawGFXChar(int16_t x, int16_t y, unsigned char c, uint16_t color);
 
-    private:
-        void _spiWrite(uint8_t b);
-        void _spiWrite16(uint16_t s);
-        void _spiWriteCommand(uint8_t c);
-        void _spiWriteData(uint8_t d);
-
         void _swap(uint16_t &a, uint16_t &b);
+
+    private:
         void _setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
         void _setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, autoIncMode_t mode);
         void _resetWindow();
         void _drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, 
                             uint16_t color, uint16_t bg, bool transparent, bool progmem, bool Xbit );
         void _orientCoordinates(uint16_t &x1, uint16_t &y1);
-        void _writeRegister(uint16_t reg, uint16_t data);
-        void _writeData(uint8_t HI, uint8_t LO);
-        void _writeData16(uint16_t HILO);
-        void _writeCommand(uint8_t HI, uint8_t LO);
-        void _writeCommand16(uint16_t HILO);
 
         uint16_t _maxX, _maxY, _bgColor;
-        int8_t  _rst, _rs, _cs;
         uint8_t  _orientation;
         _currentFont cfont;
         
@@ -382,9 +364,6 @@ class TFT_22_ILI9225 {
         };
 
     protected:
-        uint32_t writeFunctionLevel;
-        void startWrite(void);
-        void endWrite(void);
         void getGFXCharExtent(uint8_t c, int16_t *gw, int16_t *gh, int16_t *xa);
         GFXfont *gfxFont;
 };

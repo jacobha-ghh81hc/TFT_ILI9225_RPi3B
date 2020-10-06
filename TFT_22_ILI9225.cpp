@@ -1,12 +1,6 @@
 // Include application, user and local libraries
 #include "TFT_22_ILI9225.h"
-
-#define DEBUG
-#ifdef DEBUG
-    #define DB_PRINT( ... ) { char dbgbuf[60]; sprintf( dbgbuf, __VA_ARGS__ ); std::cout << "[" << __FILE__ << "][" << __FUNCTION__ << "][Line " << __LINE__ << "] " << dbgbuf << std::endl; }
-#else
-    #define DB_PRINT( ... )
-#endif
+#include "SPI_CONFIG.h"
 
 #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
 #define pgm_read_word(addr) (*(const unsigned long *)(addr))
@@ -15,137 +9,87 @@
 // Arduino Macros
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 
-// Control pins
-#define SPI_DC_HIGH()   bcm2835_gpio_write(_rs, HIGH)
-#define SPI_DC_LOW()    bcm2835_gpio_write(_rs, LOW)
-#define SPI_CS_HIGH()   bcm2835_gpio_write(_cs, HIGH)
-#define SPI_CS_LOW()    bcm2835_gpio_write(_cs, LOW)
-
-// Hardware SPI Macros
-#define HSPI_SET_CLOCK()            bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8)   
-#define HSPI_BEGIN_TRANSACTION()    bcm2835_spi_begin()
-#define HSPI_END_TRANSACTION()      bcm2835_spi_end()
-
-#define HSPI_WRITE(b)               bcm2835_spi_transfer(b)
-#define HSPI_WRITE16(s)             bcm2835_spi_write(s)
-#define HSPI_WRITE_PIXELS(c,l)      for (uint32_t i=0; i<(l); i+=2) { HSPI_WRITE(((uint8_t*)(c))[i+1]); HSPI_WRITE(((uint8_t*)(c))[i]); }
-
-#define SPI_BEGIN_TRANSACTION() { HSPI_BEGIN_TRANSACTION(); }
-#define SPI_END_TRANSACTION()   { HSPI_END_TRANSACTION(); }
-
 // Constructor when using hardware SPI.
-TFT_22_ILI9225::TFT_22_ILI9225(int8_t rst, int8_t rs, int8_t cs) {
-    _rst  = rst;
-    _rs   = rs;
-    _cs   = cs;
-    writeFunctionLevel = 0;
+TFT_22_ILI9225::TFT_22_ILI9225(int8_t RST, int8_t RS, int8_t CS) : SPI_Configuration(RST, RS, CS)
+{
     gfxFont = NULL;
 }
 
-void TFT_22_ILI9225::SPI_begin (void)
+TFT_22_ILI9225::TFT_22_ILI9225(const SPI_Configuration & spi_cfg) : SPI_Configuration(spi_cfg)
 {
-    if (!bcm2835_spi_begin()) { DB_PRINT("Function bcm2835_spi_begin is error\n"); return; }
-    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_MSBFIRST);
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8);
-    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);
-    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
-    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0,LOW);
+    gfxFont = NULL;
 }
 
 void TFT_22_ILI9225::begin (void)
 {
-    if (!bcm2835_init()) { DB_PRINT("Function bcm2835_init is error\n"); return; }
-
-    // Set up reset pin
-    bcm2835_gpio_fsel(_rst, BCM2835_GPIO_FSEL_OUTP);
-    bcm2835_gpio_write(_rst, LOW);
-
-    // Control pins
-    bcm2835_gpio_fsel(_rs, BCM2835_GPIO_FSEL_OUTP);
-    bcm2835_gpio_write(_rs, LOW);
-    bcm2835_gpio_fsel(_cs, BCM2835_GPIO_FSEL_OUTP);
-    bcm2835_gpio_write(_cs, HIGH);
-
-    // Hardware SPI
-    SPI_begin();
-
-    // Initialization Code
-    bcm2835_gpio_write(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
-    delay(1); 
-    bcm2835_gpio_write(_rst, LOW); // Pull the reset pin low to reset ILI9225
-    delay(10);
-    bcm2835_gpio_write(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
-    delay(50);
-
     // Start Initial Sequence
-
     // Set SS bit and direction output from S528 to S1
-    startWrite();
-    _writeRegister(ILI9225_POWER_CTRL1, 0x0000); // Set SAP,DSTB,STB
-    _writeRegister(ILI9225_POWER_CTRL2, 0x0000); // Set APON,PON,AON,VCI1EN,VC
-    _writeRegister(ILI9225_POWER_CTRL3, 0x0000); // Set BT,DC1,DC2,DC3
-    _writeRegister(ILI9225_POWER_CTRL4, 0x0000); // Set GVDD
-    _writeRegister(ILI9225_POWER_CTRL5, 0x0000); // Set VCOMH/VCOML voltage
-    endWrite();
-    delay(40); 
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL1, 0x0000); // Set SAP,DSTB,STB
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL2, 0x0000); // Set APON,PON,AON,VCI1EN,VC
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL3, 0x0000); // Set BT,DC1,DC2,DC3
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL4, 0x0000); // Set GVDD
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL5, 0x0000); // Set VCOMH/VCOML voltage
+    SPI_Configuration::endWrite();
+    delay(40);
 
     // Power-on sequence
-    startWrite();
-    _writeRegister(ILI9225_POWER_CTRL2, 0x0018); // Set APON,PON,AON,VCI1EN,VC
-    _writeRegister(ILI9225_POWER_CTRL3, 0x6121); // Set BT,DC1,DC2,DC3
-    _writeRegister(ILI9225_POWER_CTRL4, 0x006F); // Set GVDD 007F 0088
-    _writeRegister(ILI9225_POWER_CTRL5, 0x495F); // Set VCOMH/VCOML voltage
-    _writeRegister(ILI9225_POWER_CTRL1, 0x0800); // Set SAP,DSTB,STB
-    endWrite();
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL2, 0x0018); // Set APON,PON,AON,VCI1EN,VC
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL3, 0x6121); // Set BT,DC1,DC2,DC3
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL4, 0x006F); // Set GVDD 007F 0088
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL5, 0x495F); // Set VCOMH/VCOML voltage
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL1, 0x0800); // Set SAP,DSTB,STB
+    SPI_Configuration::endWrite();
     delay(10);
-    startWrite();
-    _writeRegister(ILI9225_POWER_CTRL2, 0x103B); // Set APON,PON,AON,VCI1EN,VC
-    endWrite();
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL2, 0x103B); // Set APON,PON,AON,VCI1EN,VC
+    SPI_Configuration::endWrite();
     delay(50);
 
-    startWrite();
-    _writeRegister(ILI9225_DRIVER_OUTPUT_CTRL, 0x011C); // set the display line number and display direction
-    _writeRegister(ILI9225_LCD_AC_DRIVING_CTRL, 0x0100); // set 1 line inversion
-    _writeRegister(ILI9225_ENTRY_MODE, 0x1038); // set GRAM write direction and BGR=1.
-    _writeRegister(ILI9225_DISP_CTRL1, 0x0000); // Display off
-    _writeRegister(ILI9225_BLANK_PERIOD_CTRL1, 0x0808); // set the back porch and front porch
-    _writeRegister(ILI9225_FRAME_CYCLE_CTRL, 0x1100); // set the clocks number per line
-    _writeRegister(ILI9225_INTERFACE_CTRL, 0x0000); // CPU interface
-    _writeRegister(ILI9225_OSC_CTRL, 0x0D01); // Set Osc 0e01
-    _writeRegister(ILI9225_VCI_RECYCLING, 0x0020); // Set VCI recycling
-    _writeRegister(ILI9225_RAM_ADDR_SET1, 0x0000); // RAM Address
-    _writeRegister(ILI9225_RAM_ADDR_SET2, 0x0000); // RAM Address
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_writeRegister(ILI9225_DRIVER_OUTPUT_CTRL, 0x011C); // set the display line number and display direction
+    SPI_Configuration::_writeRegister(ILI9225_LCD_AC_DRIVING_CTRL, 0x0100); // set 1 line inversion
+    SPI_Configuration::_writeRegister(ILI9225_ENTRY_MODE, 0x1038); // set GRAM write direction and BGR=1.
+    SPI_Configuration::_writeRegister(ILI9225_DISP_CTRL1, 0x0000); // Display off
+    SPI_Configuration::_writeRegister(ILI9225_BLANK_PERIOD_CTRL1, 0x0808); // set the back porch and front porch
+    SPI_Configuration::_writeRegister(ILI9225_FRAME_CYCLE_CTRL, 0x1100); // set the clocks number per line
+    SPI_Configuration::_writeRegister(ILI9225_INTERFACE_CTRL, 0x0000); // CPU interface
+    SPI_Configuration::_writeRegister(ILI9225_OSC_CTRL, 0x0D01); // Set Osc 0e01
+    SPI_Configuration::_writeRegister(ILI9225_VCI_RECYCLING, 0x0020); // Set VCI recycling
+    SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1, 0x0000); // RAM Address
+    SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET2, 0x0000); // RAM Address
 
     // Set GRAM area
-    _writeRegister(ILI9225_GATE_SCAN_CTRL, 0x0000); 
-    _writeRegister(ILI9225_VERTICAL_SCROLL_CTRL1, 0x00DB); 
-    _writeRegister(ILI9225_VERTICAL_SCROLL_CTRL2, 0x0000); 
-    _writeRegister(ILI9225_VERTICAL_SCROLL_CTRL3, 0x0000); 
-    _writeRegister(ILI9225_PARTIAL_DRIVING_POS1, 0x00DB); 
-    _writeRegister(ILI9225_PARTIAL_DRIVING_POS2, 0x0000); 
-    _writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR1, 0x00AF); 
-    _writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR2, 0x0000); 
-    _writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1, 0x00DB); 
-    _writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_GATE_SCAN_CTRL, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_SCROLL_CTRL1, 0x00DB); 
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_SCROLL_CTRL2, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_SCROLL_CTRL3, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_PARTIAL_DRIVING_POS1, 0x00DB); 
+    SPI_Configuration::_writeRegister(ILI9225_PARTIAL_DRIVING_POS2, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR1, 0x00AF); 
+    SPI_Configuration::_writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR2, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1, 0x00DB); 
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2, 0x0000); 
 
     // Set GAMMA curve
-    _writeRegister(ILI9225_GAMMA_CTRL1, 0x0000); 
-    _writeRegister(ILI9225_GAMMA_CTRL2, 0x0808); 
-    _writeRegister(ILI9225_GAMMA_CTRL3, 0x080A); 
-    _writeRegister(ILI9225_GAMMA_CTRL4, 0x000A); 
-    _writeRegister(ILI9225_GAMMA_CTRL5, 0x0A08); 
-    _writeRegister(ILI9225_GAMMA_CTRL6, 0x0808); 
-    _writeRegister(ILI9225_GAMMA_CTRL7, 0x0000); 
-    _writeRegister(ILI9225_GAMMA_CTRL8, 0x0A00); 
-    _writeRegister(ILI9225_GAMMA_CTRL9, 0x0710); 
-    _writeRegister(ILI9225_GAMMA_CTRL10, 0x0710); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL1, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL2, 0x0808); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL3, 0x080A); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL4, 0x000A); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL5, 0x0A08); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL6, 0x0808); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL7, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL8, 0x0A00); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL9, 0x0710); 
+    SPI_Configuration::_writeRegister(ILI9225_GAMMA_CTRL10, 0x0710); 
 
-    _writeRegister(ILI9225_DISP_CTRL1, 0x0012); 
-    endWrite();
+    SPI_Configuration::_writeRegister(ILI9225_DISP_CTRL1, 0x0012); 
+    SPI_Configuration::endWrite();
     delay(50); 
-    startWrite();
-    _writeRegister(ILI9225_DISP_CTRL1, 0x1017);
-    endWrite();
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_writeRegister(ILI9225_DISP_CTRL1, 0x1017);
+    SPI_Configuration::endWrite();
 
     // Turn on backlight
     setOrientation(0);
@@ -153,28 +97,6 @@ void TFT_22_ILI9225::begin (void)
     // Initialize variables
     setBackgroundColor(COLOR_BLACK);
     clear();
-}
-
-void TFT_22_ILI9225::_spiWrite(uint8_t b) {
-    HSPI_WRITE(b);
-}
-
-void TFT_22_ILI9225::_spiWrite16(uint16_t s) {
-    HSPI_WRITE16(s);
-}
-
-void TFT_22_ILI9225::_spiWriteCommand(uint8_t c) {
-    SPI_DC_LOW();
-    SPI_CS_LOW();
-    _spiWrite(c);
-    SPI_CS_HIGH();
-}
-
-void TFT_22_ILI9225::_spiWriteData(uint8_t d) {
-    SPI_DC_HIGH();
-    SPI_CS_LOW();
-    _spiWrite(d);
-    SPI_CS_HIGH();
 }
 
 void TFT_22_ILI9225::_orientCoordinates(uint16_t &x1, uint16_t &y1) {
@@ -215,50 +137,50 @@ void TFT_22_ILI9225::_setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t 
     if (x1<x0) _swap(x0, x1);
     if (y1<y0) _swap(y0, y1);
     
-    startWrite();
+    SPI_Configuration::startWrite();
     // autoincrement mode
     if ( _orientation > 0 ) mode = modeTab[_orientation-1][mode];
-    _writeRegister(ILI9225_ENTRY_MODE, 0x1000 | ( mode<<3) );
-    _writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR1,x1);
-    _writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR2,x0);
+    SPI_Configuration::_writeRegister(ILI9225_ENTRY_MODE, 0x1000 | ( mode<<3) );
+    SPI_Configuration::_writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR1,x1);
+    SPI_Configuration::_writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR2,x0);
 
-    _writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1,y1);
-    _writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2,y0);
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1,y1);
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2,y0);
     DB_PRINT( "gedreht: x0=%d, y0=%d, x1=%d, y1=%d, mode=%d", x0,y0,x1,y1,mode );
     // starting position within window and increment/decrement direction
     switch ( mode>>1 ) {
         case 0:
-            _writeRegister(ILI9225_RAM_ADDR_SET1,x1);
-            _writeRegister(ILI9225_RAM_ADDR_SET2,y1);
+            SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1,x1);
+            SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET2,y1);
             break;
         case 1:
-            _writeRegister(ILI9225_RAM_ADDR_SET1,x0);
-            _writeRegister(ILI9225_RAM_ADDR_SET2,y1);
+            SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1,x0);
+            SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET2,y1);
             break;
         case 2:
-            _writeRegister(ILI9225_RAM_ADDR_SET1,x1);
-            _writeRegister(ILI9225_RAM_ADDR_SET2,y0);
+            SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1,x1);
+            SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET2,y0);
             break;
         case 3:
-            _writeRegister(ILI9225_RAM_ADDR_SET1,x0);
-            _writeRegister(ILI9225_RAM_ADDR_SET2,y0);
+            SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1,x0);
+            SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET2,y0);
             break;
     }
-    _writeCommand16( ILI9225_GRAM_DATA_REG );
+    SPI_Configuration::_writeCommand16( ILI9225_GRAM_DATA_REG );
 
-    //_writeRegister(ILI9225_RAM_ADDR_SET1,x0);
-    //_writeRegister(ILI9225_RAM_ADDR_SET2,y0);
+    //SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1,x0);
+    //SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET2,y0);
 
-    //_writeCommand(0x00, 0x22);
+    //SPI_Configuration::_writeCommand(0x00, 0x22);
 
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 
 void TFT_22_ILI9225::_resetWindow() {
-    _writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR1, 0x00AF); 
-    _writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR2, 0x0000); 
-    _writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1, 0x00DB); 
-    _writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR1, 0x00AF); 
+    SPI_Configuration::_writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR2, 0x0000); 
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1, 0x00DB); 
+    SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2, 0x0000); 
 
 }
 
@@ -271,33 +193,33 @@ void TFT_22_ILI9225::clear() {
 }
 
 void TFT_22_ILI9225::invert(bool flag) {
-    startWrite();
-    _writeCommand16(flag ? ILI9225C_INVON : ILI9225C_INVOFF);
-    //_writeCommand(0x00, flag ? ILI9225C_INVON : ILI9225C_INVOFF);
-    endWrite();
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_writeCommand16(flag ? ILI9225C_INVON : ILI9225C_INVOFF);
+    //SPI_Configuration::_writeCommand(0x00, flag ? ILI9225C_INVON : ILI9225C_INVOFF);
+    SPI_Configuration::endWrite();
 }
 
 
 void TFT_22_ILI9225::setDisplay(bool flag) {
     if (flag) {
-        startWrite();
-        _writeRegister(0x00ff, 0x0000);
-        _writeRegister(ILI9225_POWER_CTRL1, 0x0000);
-        endWrite();
+        SPI_Configuration::startWrite();
+        SPI_Configuration::_writeRegister(0x00ff, 0x0000);
+        SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL1, 0x0000);
+        SPI_Configuration::endWrite();
         delay(50);
-        startWrite();
-        _writeRegister(ILI9225_DISP_CTRL1, 0x1017);
-        endWrite();
+        SPI_Configuration::startWrite();
+        SPI_Configuration::_writeRegister(ILI9225_DISP_CTRL1, 0x1017);
+        SPI_Configuration::endWrite();
         delay(200);
     } else {
-        startWrite();
-        _writeRegister(0x00ff, 0x0000);
-        _writeRegister(ILI9225_DISP_CTRL1, 0x0000);
-        endWrite();
+        SPI_Configuration::startWrite();
+        SPI_Configuration::_writeRegister(0x00ff, 0x0000);
+        SPI_Configuration::_writeRegister(ILI9225_DISP_CTRL1, 0x0000);
+        SPI_Configuration::endWrite();
         delay(50);
-        startWrite();
-        _writeRegister(ILI9225_POWER_CTRL1, 0x0003);
-        endWrite();
+        SPI_Configuration::startWrite();
+        SPI_Configuration::_writeRegister(ILI9225_POWER_CTRL1, 0x0003);
+        SPI_Configuration::endWrite();
         delay(200);
     }
 }
@@ -331,12 +253,12 @@ uint8_t TFT_22_ILI9225::getOrientation() {
 }
 
 void TFT_22_ILI9225::drawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
-    startWrite();
+    SPI_Configuration::startWrite();
     drawLine(x1, y1, x1, y2, color);
     drawLine(x1, y1, x2, y1, color);
     drawLine(x1, y2, x2, y2, color);
     drawLine(x2, y1, x2, y2, color);
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 
 
@@ -344,10 +266,10 @@ void TFT_22_ILI9225::fillRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16
 
     _setWindow(x1, y1, x2, y2);
 
-    startWrite();
+    SPI_Configuration::startWrite();
     for (uint16_t t=(y2 - y1 + 1) * (x2 - x1 + 1); t > 0; t--)
-        _writeData16(color);
-    endWrite();
+        SPI_Configuration::_writeData16(color);
+    SPI_Configuration::endWrite();
     _resetWindow();
 }
 
@@ -360,7 +282,7 @@ void TFT_22_ILI9225::drawCircle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t c
     int16_t x = 0;
     int16_t y = r;
 
-    startWrite();
+    SPI_Configuration::startWrite();
 
     drawPixel(x0, y0 + r, color);
     drawPixel(x0, y0-  r, color);
@@ -386,7 +308,7 @@ void TFT_22_ILI9225::drawCircle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t c
         drawPixel(x0 + y, y0 - x, color);
         drawPixel(x0 - y, y0 - x, color);
     }
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 
 
@@ -398,7 +320,7 @@ void TFT_22_ILI9225::fillCircle(uint8_t x0, uint8_t y0, uint8_t radius, uint16_t
     int16_t x = 0;
     int16_t y = radius;
 
-    startWrite();
+    SPI_Configuration::startWrite();
     while (x < y) {
         if (f >= 0) {
             y--;
@@ -414,7 +336,7 @@ void TFT_22_ILI9225::fillCircle(uint8_t x0, uint8_t y0, uint8_t radius, uint16_t
         drawLine(x0 + y, y0 - x, x0 + y, y0 + x, color); // right
         drawLine(x0 - y, y0 - x, x0 - y, y0 + x, color); // left
     }
-    endWrite();
+    SPI_Configuration::endWrite();
     fillRectangle(x0-x, y0-y, x0+x, y0+y, color);
 }
 
@@ -445,7 +367,7 @@ void TFT_22_ILI9225::drawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2
     if (y1 < y2) ystep = 1;
     else ystep = -1;
 
-    startWrite();
+    SPI_Configuration::startWrite();
     for (; x1<=x2; x1++) {
         if (steep) drawPixel(y1, x1, color);
         else       drawPixel(x1, y1, color);
@@ -456,7 +378,7 @@ void TFT_22_ILI9225::drawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2
             err += dx;
         }
     }
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 
 
@@ -466,18 +388,18 @@ void TFT_22_ILI9225::drawPixel(uint16_t x1, uint16_t y1, uint16_t color) {
 
     // _setWindow(x1, y1, x1+1, y1+1);
     // _orientCoordinates(x1, y1);
-    // startWrite();
-    // //_writeData(color >> 8, color);
-    // _writeData16(color);
-    // endWrite();
+    // SPI_Configuration::startWrite();
+    // //SPI_Configuration::_writeData(color >> 8, color);
+    // SPI_Configuration::_writeData16(color);
+    // SPI_Configuration::endWrite();
 
     _orientCoordinates(x1, y1);
-    startWrite();
-    _writeRegister(ILI9225_RAM_ADDR_SET1,x1);
-    _writeRegister(ILI9225_RAM_ADDR_SET2,y1);
-    _writeRegister(ILI9225_GRAM_DATA_REG,color);
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1,x1);
+    SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET2,y1);
+    SPI_Configuration::_writeRegister(ILI9225_GRAM_DATA_REG,color);
     
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 
 
@@ -512,57 +434,12 @@ void TFT_22_ILI9225::_swap(uint16_t &a, uint16_t &b) {
 }
 
 
-// Utilities
-
-void TFT_22_ILI9225::_writeCommand16(uint16_t command) {
-    SPI_DC_LOW();
-    SPI_CS_LOW();
-#ifdef HSPI_WRITE16
-    HSPI_WRITE16(command);
-#else
-    HSPI_WRITE(command >> 8);
-    HSPI_WRITE(0x00ff & command);
-#endif
-    SPI_CS_HIGH();
-}
-
-
-void TFT_22_ILI9225::_writeData16(uint16_t data) {
-    SPI_DC_HIGH();
-    SPI_CS_LOW();
-#ifdef HSPI_WRITE16
-    HSPI_WRITE16(data);
-#else 
-    HSPI_WRITE(data >> 8);
-    HSPI_WRITE(0x00ff & data);
-#endif
-    SPI_CS_HIGH();
-}
-
-
-void TFT_22_ILI9225::_writeData(uint8_t HI, uint8_t LO) {
-    _spiWriteData(HI);
-    _spiWriteData(LO);
-}
-
-void TFT_22_ILI9225::_writeCommand(uint8_t HI, uint8_t LO) {
-    _spiWriteCommand(HI);
-    _spiWriteCommand(LO);
-}
-
-
-void TFT_22_ILI9225::_writeRegister(uint16_t reg, uint16_t data) {
-    _writeCommand16(reg);
-    _writeData16(data);
-}
-
-
 void TFT_22_ILI9225::drawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color) {
-    startWrite();
+    SPI_Configuration::startWrite();
     drawLine(x1, y1, x2, y2, color);
     drawLine(x2, y2, x3, y3, color);
     drawLine(x3, y3, x1, y1, color);
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 
 
@@ -581,7 +458,7 @@ void TFT_22_ILI9225::fillTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_
         _swap(y1, y2); _swap(x1, x2);
     }
 
-    startWrite();
+    SPI_Configuration::startWrite();
     if (y1 == y3) { // Handle awkward all-on-same-line case as its own thing
         a = b = x1;
         if (x2 < a)      a = x2;
@@ -637,7 +514,7 @@ void TFT_22_ILI9225::fillTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_
         if (a > b) _swap(a,b);
             drawLine(a, y, b, y, color);
     }
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 
 
@@ -713,7 +590,7 @@ uint16_t TFT_22_ILI9225::drawChar(uint16_t x, uint16_t y, uint16_t ch, uint16_t 
     else                charWidth  = readFontByte(charOffset);  // get chracter width from 1st byte
     charOffset++;  // increment pointer to first character data byte
 
-    startWrite();
+    SPI_Configuration::startWrite();
     
     // use autoincrement/decrement feature, if character fits completely on screen
     fastMode = ( (x+charWidth+1) < _maxX && (y+cfont.height-1) < _maxY );
@@ -730,13 +607,13 @@ uint16_t TFT_22_ILI9225::drawChar(uint16_t x, uint16_t y, uint16_t ch, uint16_t 
             // Process every row in font character
             for (uint8_t k = 0; k < 8; k++) {
                 if (h >= cfont.height ) break;  // No need to process excess bits
-                if (fastMode ) _writeData16( bitRead(charData, k)?color:_bgColor );
+                if (fastMode ) SPI_Configuration::_writeData16( bitRead(charData, k)?color:_bgColor );
                 else drawPixel( x + i, y + (j * 8) + k, bitRead(charData, k)?color:_bgColor );
                 h++;
             }
         }
     }
-    endWrite();
+    SPI_Configuration::endWrite();
     _resetWindow();
     return charWidth;
 }
@@ -809,7 +686,7 @@ void TFT_22_ILI9225::_drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, in
     wh  = wy1 - wy0 + 1;
     // ww  = wx1 - wx0 + 1;
     _setWindow(wx0, wy0, wx1, wy1, L2R_TopDown);
-    startWrite();
+    SPI_Configuration::startWrite();
     for (j = y>=0?0:-y; j < (y>=0?0:-y)+wh; j++) {
         for (i = 0; i < w; i++ ) {
             if (i & 7) { 
@@ -828,17 +705,17 @@ void TFT_22_ILI9225::_drawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, in
                         noAutoInc = false;
                     }
                     else  { 
-                        _writeData16(color);
+                        SPI_Configuration::_writeData16(color);
                     }
                 }
                 else  {
                     if (transparent) noAutoInc = true; // no autoincrement in transparent area!
-                    else _writeData16( bg);
+                    else SPI_Configuration::_writeData16( bg);
                 }
             }
         }
     }
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 
 
@@ -851,7 +728,7 @@ void TFT_22_ILI9225::drawXBitmap(int16_t x, int16_t y, const uint8_t *bitmap, in
     int16_t i, j, byteWidth = (w + 7) / 8;
     uint8_t byte;
 
-    startWrite();
+    SPI_Configuration::startWrite();
     for (j = 0; j < h; j++) {
         for (i = 0; i < w; i++ ) {
             if (i & 7) byte >>= 1;
@@ -859,7 +736,7 @@ void TFT_22_ILI9225::drawXBitmap(int16_t x, int16_t y, const uint8_t *bitmap, in
             if (byte & 0x01) drawPixel(x + i, y + j, color);
         }
     }
-    endWrite();
+    SPI_Configuration::endWrite();
 }
 */
 
@@ -867,92 +744,76 @@ void TFT_22_ILI9225::drawXBitmap(int16_t x, int16_t y, const uint8_t *bitmap, in
 //High speed color bitmap
 void TFT_22_ILI9225::drawBitmap(uint16_t x1, uint16_t y1, const uint16_t** bitmap, int16_t w, int16_t h) {
     _setWindow(x1, y1, x1+w-1, y1+h-1, L2R_TopDown);
-    startWrite();
-    SPI_DC_HIGH();
-    SPI_CS_LOW();
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_spiDCHigh();
+    SPI_Configuration::_spiCSLow();
     for (uint16_t y = 0; y < h; y++) {
 #ifdef HSPI_WRITE_PIXELS
         HSPI_WRITE_PIXELS(bitmap[y], w * sizeof(uint16_t));
         continue;
 #endif
         for (uint16_t x = 0; x < w; x++) {
-            _spiWrite16(bitmap[y][x]);
+            SPI_Configuration::_spiWrite16(bitmap[y][x]);
         }
     }
-    SPI_CS_HIGH();
-    endWrite();
+    SPI_Configuration::_spiCSHigh();
+    SPI_Configuration::endWrite();
 }
 
 
 //High speed color bitmap
 void TFT_22_ILI9225::drawBitmap(uint16_t x1, uint16_t y1, uint16_t** bitmap, int16_t w, int16_t h) {
     _setWindow(x1, y1, x1+w-1, y1+h-1, L2R_TopDown);
-    startWrite();
-    SPI_DC_HIGH();
-    SPI_CS_LOW();
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_spiDCHigh();
+    SPI_Configuration::_spiCSLow();
     for (uint16_t y = 0; y < h; y++) {
 #ifdef HSPI_WRITE_PIXELS
         HSPI_WRITE_PIXELS(bitmap[y], w * sizeof(uint16_t));
         continue;
 #endif
         for (uint16_t x = 0; x < w; x++) {
-            _spiWrite16(bitmap[y][x]);
+            SPI_Configuration::_spiWrite16(bitmap[y][x]);
         }
     }
-    SPI_CS_HIGH();
-    endWrite();
+    SPI_Configuration::_spiCSHigh();
+    SPI_Configuration::endWrite();
 }
 
 
 //1-D array High speed color bitmap
 void TFT_22_ILI9225::drawBitmap(uint16_t x1, uint16_t y1, const uint16_t* bitmap, int16_t w, int16_t h) {
     _setWindow(x1, y1, x1+w-1, y1+h-1, L2R_TopDown);
-    startWrite();
-    SPI_DC_HIGH();
-    SPI_CS_LOW();
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_spiDCHigh();
+    SPI_Configuration::_spiCSLow();
 #ifdef HSPI_WRITE_PIXELS
     HSPI_WRITE_PIXELS(bitmap, w * h * sizeof(uint16_t));
 #else    
     for (uint16_t i = 0; i < h * w; ++i) {
-        _spiWrite16(bitmap[i]);
+        SPI_Configuration::_spiWrite16(bitmap[i]);
     }
 #endif    
-    SPI_CS_HIGH();
-    endWrite();
+    SPI_Configuration::_spiCSHigh();
+    SPI_Configuration::endWrite();
 }
 
 
 //1-D array High speed color bitmap
 void TFT_22_ILI9225::drawBitmap(uint16_t x1, uint16_t y1, uint16_t* bitmap, int16_t w, int16_t h) {
     _setWindow(x1, y1, x1+w-1, y1+h-1, L2R_TopDown);
-    startWrite();
-    SPI_DC_HIGH();
-    SPI_CS_LOW();
+    SPI_Configuration::startWrite();
+    SPI_Configuration::_spiDCHigh();
+    SPI_Configuration::_spiCSLow();
 #ifdef HSPI_WRITE_PIXELS
     HSPI_WRITE_PIXELS(bitmap, w * h * sizeof(uint16_t));
 #else    
     for (uint16_t i = 0; i < h * w; ++i) {
-        _spiWrite16(bitmap[i]);
+        SPI_Configuration::_spiWrite16(bitmap[i]);
     }
 #endif    
-    SPI_CS_HIGH();
-    endWrite();
-}
-
-
-void TFT_22_ILI9225::startWrite(void) {
-    if (writeFunctionLevel++ == 0) {
-        SPI_BEGIN_TRANSACTION();
-        SPI_CS_LOW();
-    }
-}
-
-
-void TFT_22_ILI9225::endWrite(void) {
-    if (--writeFunctionLevel == 0) {
-        SPI_CS_HIGH();
-        SPI_END_TRANSACTION();
-    }
+    SPI_Configuration::_spiCSHigh();
+    SPI_Configuration::endWrite();
 }
 
 
@@ -1000,7 +861,7 @@ uint16_t TFT_22_ILI9225::drawGFXChar(int16_t x, int16_t y, unsigned char c, uint
 
     // Add character clipping here one day
 
-    startWrite();
+    SPI_Configuration::startWrite();
     for(yy=0; yy<h; yy++) {
         for(xx=0; xx<w; xx++) {
             if(!(bit++ & 7)) {
@@ -1012,7 +873,7 @@ uint16_t TFT_22_ILI9225::drawGFXChar(int16_t x, int16_t y, unsigned char c, uint
             bits <<= 1;
         }
     }
-    endWrite();
+    SPI_Configuration::endWrite();
 
     return (uint16_t)xa;
 }

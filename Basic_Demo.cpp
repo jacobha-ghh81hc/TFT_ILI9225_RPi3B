@@ -249,6 +249,7 @@ static const uint8_t tux[] =
 
 int main (void)
 {
+	tft._spiBegin();
 	tft.begin();
 
 	RUNNING:

@@ -2,13 +2,6 @@
 #include "TFT_22_ILI9225.h"
 #include "SPI_CONFIG.h"
 
-#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
-#define pgm_read_word(addr) (*(const unsigned long *)(addr))
-#define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
-
-// Arduino Macros
-#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
-
 // Constructor when using hardware SPI.
 TFT_22_ILI9225::TFT_22_ILI9225(int8_t RST, int8_t RS, int8_t CS) : SPI_Configuration(RST, RS, CS)
 {
@@ -91,10 +84,9 @@ void TFT_22_ILI9225::begin (void)
     SPI_Configuration::_writeRegister(ILI9225_DISP_CTRL1, 0x1017);
     SPI_Configuration::endWrite();
 
-    // Turn on backlight
+    // Configure the orientation
+    // Init these are uint16_t _maxX, _maxY, _bgColor; uint8_t _orientation;
     setOrientation(0);
-
-    // Initialize variables
     setBackgroundColor(COLOR_BLACK);
     clear();
 }
@@ -124,7 +116,7 @@ void TFT_22_ILI9225::_setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t 
 
 
 void TFT_22_ILI9225::_setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, autoIncMode_t mode) {
-    DB_PRINT( "setWindows( x0=%d, y0=%d, x1=%d, y1=%d, mode=%d", x0,y0,x1,y1,mode );
+    DB_PRINT( "setWindows 1st: x0=%d, y0=%d, x1=%d, y1=%d, mode=%d", x0,y0,x1,y1,mode );
     
     // clip to TFT-Dimensions
     x0 = min( x0, (uint16_t) (_maxX-1) );
@@ -146,7 +138,7 @@ void TFT_22_ILI9225::_setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t 
 
     SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1,y1);
     SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2,y0);
-    DB_PRINT( "gedreht: x0=%d, y0=%d, x1=%d, y1=%d, mode=%d", x0,y0,x1,y1,mode );
+    DB_PRINT( "setWindows 2nd: x0=%d, y0=%d, x1=%d, y1=%d, mode=%d", x0,y0,x1,y1,mode );
     // starting position within window and increment/decrement direction
     switch ( mode>>1 ) {
         case 0:
@@ -177,11 +169,12 @@ void TFT_22_ILI9225::_setWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t 
 }
 
 void TFT_22_ILI9225::_resetWindow() {
+    SPI_Configuration::startWrite(); 
     SPI_Configuration::_writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR1, 0x00AF); 
     SPI_Configuration::_writeRegister(ILI9225_HORIZONTAL_WINDOW_ADDR2, 0x0000); 
     SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR1, 0x00DB); 
     SPI_Configuration::_writeRegister(ILI9225_VERTICAL_WINDOW_ADDR2, 0x0000); 
-
+    SPI_Configuration::endWrite(); 
 }
 
 void TFT_22_ILI9225::clear() {
@@ -398,7 +391,6 @@ void TFT_22_ILI9225::drawPixel(uint16_t x1, uint16_t y1, uint16_t color) {
     SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1,x1);
     SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET2,y1);
     SPI_Configuration::_writeRegister(ILI9225_GRAM_DATA_REG,color);
-    
     SPI_Configuration::endWrite();
 }
 
@@ -595,7 +587,7 @@ uint16_t TFT_22_ILI9225::drawChar(uint16_t x, uint16_t y, uint16_t ch, uint16_t 
     // use autoincrement/decrement feature, if character fits completely on screen
     fastMode = ( (x+charWidth+1) < _maxX && (y+cfont.height-1) < _maxY );
     
-    if ( fastMode ) _setWindow( x,y,x+charWidth+1, y+cfont.height-1 );  // set character Window
+    if (fastMode) _setWindow( x,y,x+charWidth+1, y+cfont.height-1 );  // set character Window
 
     for (i = 0; i <= charWidth; i++) {  // each font "column" (+1 blank column for spacing)
         h = 0;  // keep track of char height
@@ -607,7 +599,7 @@ uint16_t TFT_22_ILI9225::drawChar(uint16_t x, uint16_t y, uint16_t ch, uint16_t 
             // Process every row in font character
             for (uint8_t k = 0; k < 8; k++) {
                 if (h >= cfont.height ) break;  // No need to process excess bits
-                if (fastMode ) SPI_Configuration::_writeData16( bitRead(charData, k)?color:_bgColor );
+                if (fastMode) SPI_Configuration::_writeData16( bitRead(charData, k)?color:_bgColor );
                 else drawPixel( x + i, y + (j * 8) + k, bitRead(charData, k)?color:_bgColor );
                 h++;
             }

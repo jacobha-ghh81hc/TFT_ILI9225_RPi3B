@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include "SPI_CONFIG.h"
-#include "gfxfont.h"
+#include "./fonts/gfxfont.h"
 
 #define USE_STRING_CLASS
 #ifdef USE_STRING_CLASS
@@ -111,6 +111,13 @@ enum autoIncMode_t { R2L_BottomUp, BottomUp_R2L, L2R_BottomUp, BottomUp_L2R, R2L
 /* Font defines */
 #define FONT_HEADER_SIZE 4 // 1: pixel width of 1 font character, 2: pixel height, 
 #define readFontByte(x) pgm_read_byte(&cfont.font[x])  
+
+#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+#define pgm_read_word(addr) (*(const unsigned long *)(addr))
+#define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
+
+// Arduino Macros
+#define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 
 extern uint8_t Terminal6x8[];
 extern uint8_t Terminal11x16[];

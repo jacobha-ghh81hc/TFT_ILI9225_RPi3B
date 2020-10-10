@@ -1,4 +1,3 @@
-#include <cstdint>
 #include "TFT_22_ILI9225.h"
 
 #define fontdatatype uint8_t

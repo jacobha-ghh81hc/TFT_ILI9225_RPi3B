@@ -1,6 +1,16 @@
 // Include application, user and local libraries
 #include "TFT_22_ILI9225.h"
 
+// Include font definition files
+// NOTE: These files may not have all characters defined! Check the GFXfont def
+// params 3 + 4, e.g. 0x20 = 32 = space to 0x7E = 126 = ~
+
+#include "./fonts/FreeSans12pt7b.h"
+#include "./fonts/FreeMono12pt7b.h"
+#include "./fonts/FreeMonoBold12pt7b.h"
+#include "./fonts/FreeSerif12pt7b.h"
+
+
 // [Pin connection]
 // ILI9225-SPI-------------------------------------RPi(Pin#)
 // CS---------TFT_CS------GPIO8 Chip select--------RPI_V2_GPIO_P1_24--Pin#24
@@ -246,90 +256,64 @@ static const uint8_t tux[] =
 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xf0
 };
 
-
 int main (void)
 {
 	tft._spiBegin();
 	tft.begin();
+	tft.clear();
 
 	RUNNING:
-	tft.drawRectangle(0, 0, tft.maxX() - 1, tft.maxY() - 1, COLOR_WHITE);
+	// Variables and constants
+	int16_t x=35, y=0, w=0, h=0;
+
+	// Draw first string in big font
+	std::string s1 = "2020";
+	tft.setGFXFont(&FreeSans12pt7b); // Set current font
+	tft.getGFXTextExtent(s1, x, y, &w, &h); // Get string extents
+	y = h; // Set y position to string height
+	tft.drawGFXText(x, y, s1, COLOR_BLUE); // Print string
+	delay(500);
+
+	// Draw second string in smaller font
+	tft.setGFXFont(&FreeMonoBold12pt7b);  // Change font
+	std::string s2 = "Hello"; // Create string object
+	tft.getGFXTextExtent(s2, x, y, &w, &h); // Get string extents
+	y += h + 10; // Set y position to string height plus shift down 10 pixels
+	tft.drawGFXText(x, y, s2, COLOR_GREEN); // Print string
+	delay(500);
+
+	// Draw third string in same font
+	tft.setGFXFont(&FreeSerif12pt7b);  // Change font
+	std::string s3 = "World"; // Create string object
+	y += h + 10; // Set y position to previous string height plus shift down 10 pixels
+	tft.drawGFXText(x, y, s3, COLOR_RED); // Print string
+	delay(500);
+
+
 	tft.setFont(Terminal12x16);
-	tft.drawText(10, 10, "hello!");
-	delay(1000);
-  
-	tft.clear();
-	tft.drawText(10, 20, "clear");
-	delay(1000);
+	y += h + 10; // Set y position to previous string height plus shift down 10 pixels
+	tft.drawText(x, y, "Normal font", COLOR_NAVY);
+	delay(500);
 
-	tft.drawText(10, 30, "text small");
-	tft.setBackgroundColor(COLOR_YELLOW);
-	tft.setFont(Terminal6x8);
-	tft.drawText(90, 30, "BIG", COLOR_RED);
-	tft.setBackgroundColor(COLOR_RED);
-	tft.setFont(Terminal12x16);
-	delay(1000);
+	tft.fillRectangle(30, 30, 50, 50, COLOR_GREY);
+	tft.fillRectangle(150, 150, 170, 170, COLOR_OLIVE);
+	delay(500);
 
-	tft.drawRectangle(10, 10, 110, 110, COLOR_BLUE);
-	tft.drawText(10, 60, "rectangle");
-	delay(1000);
+	tft.drawLine(50, 50, 150, 150, COLOR_SIENNA);
+	delay(500);
 
-	tft.fillRectangle(20, 20, 120, 120, COLOR_RED);
-	tft.drawText(10, 70, "solidRectangle");
-	delay(1000);
+	tft.drawRectangle(50, 50, 150, 150, COLOR_VIOLET);
+	delay(500);
 
-	tft.drawCircle(80, 80, 50, COLOR_YELLOW);
-	tft.drawText(10, 80, "circle");
-	delay(1000);
-
-	tft.fillCircle(90, 90, 30, COLOR_GREEN);
-	tft.drawText(10, 90, "solidCircle");
-	delay(1000);
-
-	tft.drawLine(0, 0, tft.maxX() - 1, tft.maxY() - 1, COLOR_CYAN);
-	tft.drawText(10, 100, "line");
-	delay(1000);
-	
-	for (uint8_t i = 0; i < 4; i++) {
-		tft.clear();
-		tft.setOrientation(i);
-		tft.drawRectangle(0, 0, tft.maxX() - 1, tft.maxY() - 1, COLOR_WHITE);
-		tft.drawText(10, 10, "setOrientation (" + std::string("0123").substr(i, i + 1) + ")", COLOR_YELLOWGREEN);
-		tft.drawRectangle(10, 20, 50, 60, COLOR_GREEN);
-		tft.drawCircle(70, 80, 10, COLOR_BLUE);
-		tft.drawLine(30, 40, 70, 80, COLOR_YELLOW);
-		delay(1000);
-	}
-
-	tft.setOrientation(0);
-	tft.clear();
-	tft.drawText(10, 100, "drawing bitmap");
-	delay(1000);
-	tft.clear();
-	tft.setBackgroundColor(COLOR_RED);
-	tft.drawBitmap(0, 0, tux, 180, 220, COLOR_WHITE);
-	delay(5000);
+	tft.drawCircle(50, 50, 50, COLOR_SILVER);
+	tft.drawCircle(150, 150, 26, COLOR_GOLD);
+	delay(4000);
 
 	tft.clear();
-	tft.drawPixel(10, 20, COLOR_RED);
-	delay(3000);
-	tft.drawText(10, 110, "point");
+	tft.drawBitmap(0, 0, tux, 180, 220, COLOR_AZUR);
 	delay(1000);
 
-	tft.setOrientation(0);
 	tft.clear();
-	tft.setFont(Terminal12x16);
-	tft.setBackgroundColor(COLOR_YELLOW);
-	tft.drawText(10, 40, "bye!", COLOR_RED);
-	tft.setBackgroundColor(COLOR_GREEN);
-	tft.setFont(Terminal6x8);
-	delay(1000);
-  
-	tft.drawText(10, 60, "off");
-	delay(1000);
 	goto RUNNING;
-
-	tft.setDisplay(false);
-
 	return 0;
 }

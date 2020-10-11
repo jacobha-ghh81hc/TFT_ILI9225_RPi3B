@@ -12,6 +12,14 @@ void SPI_Configuration::_spiDCHigh(void) { bcm2835_gpio_write(_rs, HIGH); }
 void SPI_Configuration::_spiDCLow(void) { bcm2835_gpio_write(_rs, LOW); }
 void SPI_Configuration::_spiCSHigh(void) { bcm2835_gpio_write(_cs, HIGH); }
 void SPI_Configuration::_spiCSLow(void) { bcm2835_gpio_write(_cs, LOW); }
+void SPI_Configuration::_spiResetTFT(void)
+{
+    bcm2835_gpio_fsel(_rst, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_write(_rst, LOW); // Pull the reset pin low to reset ILI9225
+    bcm2835_delay(100);
+    bcm2835_gpio_write(_rst, HIGH); // Pull the reset pin high to release the ILI9225C from the reset status
+    bcm2835_delay(100);
+}
 
 void SPI_Configuration::_spiBegin (void)
 {

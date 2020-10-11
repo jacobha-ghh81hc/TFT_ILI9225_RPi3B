@@ -254,16 +254,106 @@ void TFT_22_ILI9225::drawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16
     SPI_Configuration::endWrite();
 }
 
+void TFT_22_ILI9225::drawRectangleWithAngle(uint16_t xc, uint16_t yc, uint16_t w, uint16_t h, uint16_t angle, uint16_t color)
+{
+    double xd,yd,rd;
+    int x1,y1;
+    int x2,y2;
+    int x3,y3;
+    int x4,y4;
+    rd = angle * M_PI / 180.0;
+    xd = 0.0 - w/2;
+    yd = h/2;
+    //printf("w=%d h=%d xd=%f yd=%f\n",w,h,xd,yd);
+    x1 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+    y1 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+    yd = 0.0 - yd;
+    //printf("w=%d h=%d xd=%f yd=%f\n",w,h,xd,yd);
+    x2 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+    y2 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+    xd = w/2;
+    yd = h/2;
+    //printf("w=%d h=%d xd=%f yd=%f\n",w,h,xd,yd);
+    x3 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+    y3 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+    yd = 0.0 - yd;
+    //printf("w=%d h=%d xd=%f yd=%f\n",w,h,xd,yd);
+    x4 = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+    y4 = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+
+    drawLine(x1,y1,x2,y2,color);
+    drawLine(x1,y1,x3,y3,color);
+    drawLine(x2,y2,x4,y4,color);
+    drawLine(x3,y3,x4,y4,color);
+}
+
+void TFT_22_ILI9225::drawRoundRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t r, uint16_t color)
+{
+    int x;
+    int y;
+    int err;
+    int old_err;
+    unsigned char temp;
+
+    if(x1>x2) {
+    temp=x1; x1=x2; x2=temp;
+    }
+
+    if(y1>y2) {
+    temp=y1; y1=y2; y2=temp;
+    }
+    if (x2 - x1 < r) return; // Add 20190517
+    if (y2 - y1 < r) return; // Add 20190517
+
+
+    x=0;
+    y=-r;
+    err=2-2*r;
+
+    do
+    {
+        if(x)
+        {
+            drawPixel(x1+r-x,y1+r+y,color); 
+            drawPixel(x2-r+x,y1+r+y,color); 
+            drawPixel(x1+r-x,y2-r-y,color); 
+            drawPixel(x2-r+x,y2-r-y,color);
+        } 
+        if ((old_err=err)<=x)   err+=++x*2+1;
+        if (old_err>y || err>x) err+=++y*2+1;
+    } while(y<0);
+
+    drawLine(x1+r,y1  ,x2-r,y1  ,color);
+    drawLine(x1+r,y2  ,x2-r,y2  ,color);
+    drawLine(x1  ,y1+r,x1  ,y2-r,color);
+    drawLine(x2  ,y1+r,x2  ,y2-r,color);  
+} 
 
 void TFT_22_ILI9225::fillRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color) {
-
     _setWindow(x1, y1, x2, y2);
-
     SPI_Configuration::startWrite();
     for (uint16_t t=(y2 - y1 + 1) * (x2 - x1 + 1); t > 0; t--)
         SPI_Configuration::_writeData16(color);
     SPI_Configuration::endWrite();
     _resetWindow();
+}
+
+void TFT_22_ILI9225::fillRectangleWithAngle(uint16_t xc, uint16_t yc, uint16_t w, uint16_t h, uint16_t angle, uint16_t color)
+{
+  int ww,hh;
+  int x,y;
+  double xd,yd,rd;
+  rd = angle * M_PI / 180.0;
+  for (yd=(-h/2);yd<(h/2);yd++) {
+    for (xd=(-w/2);xd<(w/2);xd++) {
+      x = (int)(xd * cos(rd) - yd * sin(rd) + xc);
+      y = (int)(xd * sin(rd) + yd * cos(rd) + yc);
+      drawPixel(x, y, color);
+    }
+  }
 }
 
 
@@ -376,16 +466,7 @@ void TFT_22_ILI9225::drawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2
 
 
 void TFT_22_ILI9225::drawPixel(uint16_t x1, uint16_t y1, uint16_t color) {
-
     if((x1 >= _maxX) || (y1 >= _maxY)) return;
-
-    // _setWindow(x1, y1, x1+1, y1+1);
-    // _orientCoordinates(x1, y1);
-    // SPI_Configuration::startWrite();
-    // //SPI_Configuration::_writeData(color >> 8, color);
-    // SPI_Configuration::_writeData16(color);
-    // SPI_Configuration::endWrite();
-
     _orientCoordinates(x1, y1);
     SPI_Configuration::startWrite();
     SPI_Configuration::_writeRegister(ILI9225_RAM_ADDR_SET1,x1);
@@ -515,7 +596,7 @@ void TFT_22_ILI9225::setBackgroundColor(uint16_t color) {
 }
 
 
-void TFT_22_ILI9225::setFont(uint8_t* font, bool monoSp) {
+void TFT_22_ILI9225::setFont(const uint8_t* font, bool monoSp) {
 
     cfont.font     = font;
     cfont.width    = readFontByte(0);

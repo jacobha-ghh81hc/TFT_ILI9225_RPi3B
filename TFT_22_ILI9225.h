@@ -1,9 +1,12 @@
 #ifndef TFT_22_ILI9225_h
 #define TFT_22_ILI9225_h
 
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <cstdint>
 #include "SPI_CONFIG.h"
 #include "./fonts/gfxfont.h"
+#include "./fonts/DefaultFonts.h"
 
 #define USE_STRING_CLASS
 #ifdef USE_STRING_CLASS
@@ -119,14 +122,14 @@ enum autoIncMode_t { R2L_BottomUp, BottomUp_R2L, L2R_BottomUp, BottomUp_L2R, R2L
 // Arduino Macros
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 
-extern uint8_t Terminal6x8[];
-extern uint8_t Terminal11x16[];
-extern uint8_t Terminal12x16[];
-extern uint8_t Trebuchet_MS16x21[];
+extern const uint8_t Terminal6x8[];
+extern const uint8_t Terminal11x16[];
+extern const uint8_t Terminal12x16[];
+extern const uint8_t Trebuchet_MS16x21[];
 
 struct _currentFont
 {
-    uint8_t* font;
+    const uint8_t* font;
     uint8_t width;
     uint8_t height;
     uint8_t offset;
@@ -208,6 +211,20 @@ class TFT_22_ILI9225 : public SPI_Configuration
         /// @param    color 16-bit color
         void drawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color); 
 
+        //When the origin is (0, 0), the point (x1, y1) after rotating the point (x, y) by the angle is obtained by the following calculation.
+        // x1 = x * cos(angle) - y * sin(angle)
+        // y1 = x * sin(angle) + y * cos(angle)
+        void drawRectangleWithAngle(uint16_t xc, uint16_t yc, uint16_t w, uint16_t h, uint16_t angle, uint16_t color);
+
+        // Draw rectangle with round corner
+        // x1:Start X coordinate
+        // y1:Start Y coordinate
+        // x2:End   X coordinate
+        // y2:End   Y coordinate
+        // r:radius
+        // color:color
+        void drawRoundRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t r, uint16_t color);
+
         /// Draw solid rectangle, rectangle coordinates
         /// @param    x1 top left coordinate, x-axis
         /// @param    y1 top left coordinate, y-axis
@@ -215,6 +232,15 @@ class TFT_22_ILI9225 : public SPI_Configuration
         /// @param    y2 bottom right coordinate, y-axis
         /// @param    color 16-bit color
         void fillRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);
+
+        // Draw fill rectangle with angle
+        // xc:Center X coordinate
+        // yc:Center Y coordinate
+        // w:Width of rectangle
+        // h:Height of rectangle
+        // angle :Angle of rectangle
+        // color :color
+        void fillRectangleWithAngle(uint16_t xc, uint16_t yc, uint16_t w, uint16_t h, uint16_t angle, uint16_t color);
 
         /// Draw pixel
         /// @param    x1 point coordinate, x-axis
@@ -270,7 +296,7 @@ class TFT_22_ILI9225 : public SPI_Configuration
 
         /// Set current font
         /// @param    font Font name
-        void setFont(uint8_t* font, bool monoSp=false ); // default = proportional
+        void setFont(const uint8_t* font, bool monoSp=false ); // default = proportional
         
         /// Get current font
         _currentFont getFont();

@@ -264,37 +264,38 @@ int main (void)
 
 	RUNNING:
 	// Variables and constants
-	int16_t x=35, y=0, w=0, h=0;
+	int16_t x=35, y=0, w1=0, h1=0;
 
 	// Draw first string in big font
 	std::string s1 = "2020";
 	tft.setGFXFont(&FreeSans12pt7b); // Set current font
-	tft.getGFXTextExtent(s1, x, y, &w, &h); // Get string extents
-	y = h; // Set y position to string height
+	tft.getGFXTextExtent(s1, x, y, &w1, &h1); // Get string extents
+	y = h1; // Set y position to string height
 	tft.drawGFXText(x, y, s1, COLOR_BLUE); // Print string
 	delay(500);
 
 	// Draw second string in smaller font
 	tft.setGFXFont(&FreeMonoBold12pt7b);  // Change font
 	std::string s2 = "Hello"; // Create string object
-	tft.getGFXTextExtent(s2, x, y, &w, &h); // Get string extents
-	y += h + 10; // Set y position to string height plus shift down 10 pixels
+	tft.getGFXTextExtent(s2, x, y, &w1, &h1); // Get string extents
+	y += h1 + 10; // Set y position to string height plus shift down 10 pixels
 	tft.drawGFXText(x, y, s2, COLOR_GREEN); // Print string
 	delay(500);
 
 	// Draw third string in same font
 	tft.setGFXFont(&FreeSerif12pt7b);  // Change font
 	std::string s3 = "World"; // Create string object
-	y += h + 10; // Set y position to previous string height plus shift down 10 pixels
+	y += h1 + 10; // Set y position to previous string height plus shift down 10 pixels
 	tft.drawGFXText(x, y, s3, COLOR_RED); // Print string
 	delay(500);
 
 
 	tft.setFont(Terminal12x16);
-	y += h + 10; // Set y position to previous string height plus shift down 10 pixels
+	y += h1 + 10; // Set y position to previous string height plus shift down 10 pixels
 	tft.drawText(x, y, "Normal font", COLOR_NAVY);
 	delay(500);
 
+	tft.clear();
 	tft.fillRectangle(30, 30, 50, 50, COLOR_GREY);
 	tft.fillRectangle(150, 150, 170, 170, COLOR_OLIVE);
 	delay(500);
@@ -307,10 +308,53 @@ int main (void)
 
 	tft.drawCircle(50, 50, 50, COLOR_SILVER);
 	tft.drawCircle(150, 150, 26, COLOR_GOLD);
-	delay(4000);
+	delay(1000);
 
 	tft.clear();
 	tft.drawBitmap(0, 0, tux, 180, 220, COLOR_AZUR);
+	delay(1000);
+
+	tft.clear();
+	int16_t width = 176, height = 220;
+	uint16_t color;
+	tft.setBackgroundColor(COLOR_BLACK);
+	color = COLOR_CYAN;
+	uint16_t xpos = width/2;
+	uint16_t ypos = height/2;
+	uint16_t w2 = width * 0.8;
+	uint16_t h2 = w2 * 0.5;
+	int angle;
+	for(angle=0;angle<=(360);angle=angle+30)
+	{
+		tft.drawRectangleWithAngle(xpos, ypos, w2, h2, angle, color);
+		delay(500);
+		tft.clear();
+	}
+
+	for(angle=0;angle<=180;angle=angle+30)
+	{
+		tft.drawRectangleWithAngle(xpos, ypos, w2, h2, angle, color);
+	}
+	delay(1000);
+
+	tft.clear();
+	tft.setBackgroundColor(COLOR_CYAN);
+	uint16_t red;
+	uint16_t green;
+	uint16_t blue;
+	srand((unsigned int)time(NULL));
+	int i;
+	for(i=1;i<100;i++)
+	{
+		red=rand()%255;
+		green=rand()%255;
+		blue=rand()%255;
+		color=tft.setColor(red, green, blue);
+		uint16_t xpos=rand()%width;
+		uint16_t ypos=rand()%height;
+		uint16_t size=rand()%(width/5);
+		tft.fillRectangle(xpos, ypos, xpos+size, ypos+size, color);
+	}
 	delay(1000);
 
 	tft.clear();

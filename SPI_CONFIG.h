@@ -47,6 +47,7 @@ public:
     void _spiDCLow(void);
     void _spiCSHigh(void);
     void _spiCSLow(void);
+    void _spiResetTFT(void);
 
     void _writeRegister(uint16_t reg, uint16_t data);
     void _writeData(uint8_t HI, uint8_t LO);
